@@ -1,0 +1,23 @@
+# Binarios compilados de Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+centromedico
+
+# Archivos de log
+*.log
+log.txt
+
+# Archivos de entorno - ¡MUY IMPORTANTE!
+# Contiene claves y contraseñas, no debe subirse a un repositorio público.
+local.env
+.env
+
+# Directorio de backups
+/backups/
+
+# Archivos de configuración de IDEs
+.idea/
+.vscode/

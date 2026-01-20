@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Restaurant</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <style>
+      body {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+      }
+
+      main {
+        flex: 1 0 auto;
+      }
+
+      .fixed-action-btn {
+        bottom: 45px;
+        right: 24px;
+      }
+
+      .card {
+        overflow: hidden;
+      }
+
+      .card-image img {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <div class="nav-wrapper">
+          <a href="#" class="brand-logo">Restaurant Page</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <div class="container">
+        <div class="row">
+          <div class="col s12">
+            <div class="card">
+              <div class="card-image">
+                <img
+                  src="../assets/images/Header-image.png"
+                  alt="Header Image"
+                />
+                <span class="card-title">El Rancho de Luis</span>
+              </div>
+              <div class="card-content">
+                <p>Restaurant de Luis</p>
+                <p>El mejor sabor de comida criolla</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col s12">
+            <ul class="tabs">
+              <li class="tab col s3"><a href="#category1">Category 1</a></li>
+              <li class="tab col s3"><a href="#category2">Category 2</a></li>
+              <li class="tab col s3"><a href="#category3">Category 3</a></li>
+            </ul>
+          </div>
+          <div id="category1" class="col s12">
+            <!-- Insert your card structure for Category 1 here -->
+          </div>
+          <div id="category2" class="col s12">
+            <!-- Insert your card structure for Category 2 here -->
+          </div>
+          <div id="category3" class="col s12">
+            <!-- Insert your card structure for Category 3 here -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="page-footer">
+      <div class="container">
+        <div class="fixed-action-btn">
+          <a class="btn-floating btn-large red">
+            <i class="large material-icons">update</i>
+          </a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var elems = document.querySelectorAll(".fixed-action-btn");
+        var instances = M.FloatingActionButton.init(elems, {
+          direction: "top",
+          hoverEnabled: false,
+        });
+      });
+    </script>
+  </body>
+</html>
