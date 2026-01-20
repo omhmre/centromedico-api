@@ -18,6 +18,7 @@ var (
 	DB_NAME      string
 	DB_PORT      string
 	DB_POOL_MODE string
+	DB_SSL_MODE  string // Nueva variable para el modo SSL
 	dbinfo       string
 	PUERTOAPP    string
 	SECRET_KEY   string
@@ -51,6 +52,7 @@ func FetchVars() {
 	DB_NAME = os.Getenv("BASEDEDATOS")
 	DB_PORT = os.Getenv("PUERTOBD")
 	DB_POOL_MODE = os.Getenv("pool_mode")
+	DB_SSL_MODE = getEnv("SSL_MODE", "disable") // Por defecto 'disable' para desarrollo local
 	SECRET_KEY = os.Getenv("SECRET_KEY")
 	TIEMPO = os.Getenv("TIEMPO")
 
@@ -70,10 +72,9 @@ func FetchVars() {
 		utils.CreateLog(fmt.Sprintf("Could not resolve host %s: %v. Using original hostname.", DB_SERVER, err))
 	}
 
-	// Construir cadena de conexión
-	// Using resolved host and quoting password for safety with special characters
-	dbinfo = fmt.Sprintf("host=%s user=%s password='%s' dbname=%s port=%s sslmode=require",
-		dbHost, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT)
+	// Construir cadena de conexión (sin comillas en la contraseña y con sslmode configurable)
+	dbinfo = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		dbHost, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, DB_SSL_MODE)
 	if DB_POOL_MODE != "" {
 		dbinfo = fmt.Sprintf("%s pool_mode=%s", dbinfo, DB_POOL_MODE)
 	}
