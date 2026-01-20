@@ -39,7 +39,8 @@ func FetchVars() {
 	}
 
 	// Asignar variables con valores por defecto
-	PUERTOAPP = getEnv("PUERTO", DefaultPort)
+	// Render y otras plataformas de hosting usan la variable PORT. Le damos prioridad.
+	PUERTOAPP = getEnv("PORT", getEnv("PUERTO", DefaultPort))
 	HORABACK = getEnv("HORABACK", "8")
 	MINUTOBACK = getEnv("MINUTOBACK", "0")
 
