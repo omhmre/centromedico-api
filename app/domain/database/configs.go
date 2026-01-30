@@ -18,7 +18,7 @@ var (
 	DB_NAME      string
 	DB_PORT      string
 	DB_POOL_MODE string
-	DB_SSL_MODE  string // Nueva variable para el modo SSL
+	DB_SSL_MODE  string
 	dbinfo       string
 	PUERTOAPP    string
 	SECRET_KEY   string
