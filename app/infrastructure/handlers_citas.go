@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"omhmre.com/centromedico/app/domain/models"
 	"omhmre.com/centromedico/app/domain/utils"
@@ -192,30 +191,12 @@ func (a *App) UpdateDoctores() http.HandlerFunc {
 
 func (a *App) GetPacientes() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Leer parámetros de paginación de la URL.
-		pageStr := r.URL.Query().Get("page")
-		pageSizeStr := r.URL.Query().Get("pageSize")
-
-		page, err := strconv.Atoi(pageStr)
-		if err != nil || page < 1 {
-			page = 1 // Página por defecto es 1.
-		}
-
-		// Tamaño de página por defecto.
-		pageSize, err := strconv.Atoi(pageSizeStr)
-		if err != nil || pageSize <= 0 {
-			pageSize = 20 // Tamaño de página por defecto.
-		}
-
-		// Llamar a la función de la base de datos con paginación.
-		pacientes, totalRecords, rp := a.DB.GetPacientes(page, pageSize)
+		// Llamar a la función de la base de datos sin paginación.
+		pacientes, rp := a.DB.GetPacientes()
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, rp.Status)
 			return
 		}
-
-		// Añadir el conteo total en un header para que el frontend lo pueda usar.
-		w.Header().Set("X-Total-Count", strconv.Itoa(totalRecords))
 
 		// Enviar la lista de pacientes en el cuerpo de la respuesta.
 		sendResponse(w, r, pacientes, http.StatusOK)

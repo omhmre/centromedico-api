@@ -113,7 +113,7 @@ type PostDB interface {
 	DelPresupuesto(e models.Id) models.Respuesta
 	GetDoctores() ([]models.DoctoresModel, models.Respuesta)
 	UpdDoctores(i models.DoctoresModel) models.Respuesta
-	GetPacientes(page, pageSize int) ([]models.PacientesModel, int, models.Respuesta)
+	GetPacientes() ([]models.PacientesModel, models.Respuesta)
 	PostDoctor(i models.DoctoresModel) models.Respuesta
 	DelDoctor(i models.DoctoresModel) models.Respuesta
 	PostPaciente(i models.PacientesModel) models.Respuesta
@@ -421,51 +421,46 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 	return rp
 }
 
-func (d *DB) GetPacientes(page, pageSize int) ([]models.PacientesModel, int, models.Respuesta) {
+func (d *DB) GetPacientes() ([]models.PacientesModel, models.Respuesta) {
 	var rp models.Respuesta
-	// Usamos una struct anónima para decodificar la respuesta de la DB
-	// y así evitar crear un nuevo modelo exportado.
-	var response struct {
-		TotalRecords int                     `json:"total_records"`
-		Pacientes    []models.PacientesModel `json:"pacientes"`
-	}
-	var jsonData []byte // Usamos []byte para recibir el JSON de la DB
 
-	// Ejecutamos la función de la base de datos que devuelve un único JSON
-	err := d.db.QueryRow(sqlGetAllPacientesData, pageSize, page).Scan(&jsonData)
+	rows, err := d.db.Query(sqlGetPacientes)
 	if err != nil {
-		// Si no hay filas o hay un error, devolvemos una respuesta de error
-		if err == sql.ErrNoRows || jsonData == nil {
-			rp.Status = 200 // Una lista vacía es un éxito
-			rp.Mensaje = "No hay pacientes para mostrar."
-			return []models.PacientesModel{}, 0, rp
+		rp.Status = 500
+		rp.Mensaje = "Error al obtener pacientes: " + err.Error()
+		utils.CreateLog(rp.Mensaje)
+		return nil, rp
+	}
+	defer rows.Close()
+
+	var pacientes []models.PacientesModel
+	for rows.Next() {
+		var paciente models.PacientesModel
+		err := rows.Scan(
+			&paciente.Id,
+			&paciente.Cedula,
+			&paciente.Nombres,
+			&paciente.Fenac,
+			&paciente.Representante,
+			&paciente.Whatsapp,
+			&paciente.Direccion,
+			&paciente.Correo,
+			&paciente.Diagnostico,
+			&paciente.CXC,
+			&paciente.CreatedAt,
+		)
+		if err != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error al escanear paciente: " + err.Error()
+			utils.CreateLog(rp.Mensaje)
+			return nil, rp
 		}
-		rp.Status = 500
-		rp.Mensaje = "Error al ejecutar la función en la base de datos: " + err.Error()
-		utils.CreateLog(rp.Mensaje)
-		return nil, 0, rp
-	}
-
-	// Si jsonData es nil (la función podría devolver NULL si no hay pacientes),
-	// devolvemos un slice vacío.
-	if jsonData == nil {
-		rp.Status = 200
-		rp.Mensaje = "Pacientes listados correctamente (lista vacía)."
-		return []models.PacientesModel{}, 0, rp
-	}
-
-	// Decodificamos el JSON que nos dio la base de datos en nuestro slice de structs de Go
-	err = json.Unmarshal(jsonData, &response)
-	if err != nil {
-		rp.Status = 500
-		rp.Mensaje = "Error al decodificar los datos de los pacientes desde JSON: " + err.Error()
-		utils.CreateLog(rp.Mensaje)
-		return nil, 0, rp
+		pacientes = append(pacientes, paciente)
 	}
 
 	rp.Status = 200
 	rp.Mensaje = "Pacientes listados correctamente!"
-	return response.Pacientes, response.TotalRecords, rp
+	return pacientes, rp
 }
 
 // UpsertPrecioEspecialidad inserta o actualiza un precio para un paciente y especialidad.
