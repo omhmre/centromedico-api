@@ -1156,8 +1156,8 @@ func (d *DB) DelInventario(i models.Inventario) models.Respuesta {
 		rp.Mensaje = strconv.FormatInt(datos, 10) + " Registro Eliminado Correctamente"
 		rp.Status = 200
 	} else {
-		rp.Status = 201
-		rp.Mensaje = "No se agrego producto!"
+		rp.Status = 201 // No se encontró el registro
+		rp.Mensaje = "No se encontró el paciente para eliminar."
 	}
 	return rp
 }

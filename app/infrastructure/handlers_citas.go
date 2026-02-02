@@ -248,21 +248,22 @@ func (a *App) UpdPaciente() http.HandlerFunc {
 func (a *App) DelPaciente() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var paciente models.PacientesModel
-		var resp models.Respuesta
 		err := json.NewDecoder(r.Body).Decode(&paciente)
 		if err != nil {
-			// log.Printf("Unable to decode the request body.  %v", err)
-		}
-		rp := a.DB.DelPaciente(paciente)
-		if rp.Status >= 200 {
-			resp.Status = 503
-			resp.Mensaje = "No se pudo eliminar el Paciente. Error=%v \n"
-			sendResponse(w, r, rp, http.StatusInternalServerError)
+			utils.CreateLog("DelPaciente: No se pudo decodificar el cuerpo de la solicitud: " + err.Error())
+			sendResponse(w, r, models.Respuesta{
+				Status:  http.StatusBadRequest,
+				Mensaje: "Cuerpo de la solicitud inválido: " + err.Error(),
+			}, http.StatusBadRequest)
 			return
 		}
-		resp.Status = 201
-		resp.Mensaje = rp.Mensaje
-		sendResponse(w, r, resp, http.StatusOK)
+
+		rp := a.DB.DelPaciente(paciente)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+		} else {
+			sendResponse(w, r, rp, http.StatusOK)
+		}
 	}
 }
 
