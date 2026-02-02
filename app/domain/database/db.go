@@ -4068,24 +4068,52 @@ func (d *DB) DelPresupuesto(e models.Id) models.Respuesta {
 
 func (d *DB) DelCita(e models.IdCitas) models.Respuesta {
 	var rp models.Respuesta
-	var sqlStr = ""
-	if e.Tipo == 1 {
-		sqlStr = sqlDelCita
-	} else {
-		sqlStr = sqlDelCitaAll
+	var resp sql.Result
+	var execErr error
+
+	if e.Tipo == 1 { // Eliminar solo esta cita
+		resp, execErr = d.db.Exec(sqlDelCita, e.Id)
+	} else { // e.Tipo == 2: Eliminar esta y todas las posteriores en la serie
+		// Primero, obtener el group_id y la fecha de inicio de la cita objetivo
+		var targetGroupID sql.NullString
+		var targetInicio time.Time
+		queryRowErr := d.db.QueryRow("SELECT group_id, inicio FROM medi001.citas WHERE id = $1", e.Id).Scan(&targetGroupID, &targetInicio)
+		if queryRowErr != nil {
+			if queryRowErr == sql.ErrNoRows {
+				rp.Status = 404
+				rp.Mensaje = "Cita no encontrada."
+				return rp
+			}
+			rp.Status = 500
+			rp.Mensaje = "Error al obtener información de la cita: " + queryRowErr.Error()
+			utils.CreateLog(rp.Mensaje)
+			return rp
+		}
+
+		if targetGroupID.Valid { // Si la cita tiene un group_id válido, es parte de una serie
+			// Eliminar todas las citas en la serie desde la fecha de inicio de la cita objetivo en adelante
+			// sqlDelCitaAll ya está diseñado para usar $1 para obtener group_id e inicio.
+			resp, execErr = d.db.Exec(sqlDelCitaAll, e.Id)
+		} else { // Es una cita única (group_id es NULL), aunque se pidió eliminar la serie
+			// En este caso, "eliminar todas las posteriores" significa solo eliminar esta,
+			// ya que no hay una serie a la que pertenezca.
+			resp, execErr = d.db.Exec(sqlDelCita, e.Id)
+		}
 	}
-	resp, err := d.db.Exec(sqlStr, e.Id)
-	if err != nil {
+
+	if execErr != nil {
 		rp.Status = 500
-		rp.Mensaje = "No se pudo eliminar la Cita. " + err.Error()
+		rp.Mensaje = "No se pudo eliminar la(s) Cita(s). " + execErr.Error()
+		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
-	datos, err1 := resp.RowsAffected()
-	if err1 != nil {
+
+	datos, rowsAffectedErr := resp.RowsAffected()
+	if rowsAffectedErr != nil {
 		rp.Status = 500
-		rp.Mensaje = err1.Error()
+		rp.Mensaje = rowsAffectedErr.Error()
 	} else if datos > 0 {
-		rp.Mensaje = strconv.FormatInt(datos, 10) + " Registro Eliminado Correctamente"
+		rp.Mensaje = strconv.FormatInt(datos, 10) + " Registro(s) Eliminado(s) Correctamente"
 		rp.Status = 200
 	} else {
 		rp.Status = 201
