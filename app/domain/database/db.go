@@ -3670,7 +3670,7 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 
 		weeks := citaBase.Weeks
 		if weeks <= 0 {
-			weeks = 52
+			weeks = 1
 		}
 
 		var groupID *string
