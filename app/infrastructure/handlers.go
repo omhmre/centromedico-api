@@ -1368,6 +1368,38 @@ func (a *App) PutEmailConfig() http.HandlerFunc {
 	}
 }
 
+func (a *App) PostEmailConfig() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var e models.EmailConfig
+		err := json.NewDecoder(r.Body).Decode(&e)
+		if err != nil {
+			log.Printf("Unable to decode the request body.  %v", err)
+		}
+		rp := a.DB.AddEmailConfig(e)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+		} else {
+			sendResponse(w, r, rp, http.StatusOK)
+		}
+	}
+}
+
+func (a *App) DelEmailConfig() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var e models.Id
+		err := json.NewDecoder(r.Body).Decode(&e)
+		if err != nil {
+			log.Printf("Unable to decode the request body.  %v", err)
+		}
+		rp := a.DB.DelEmailConfig(e)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+		} else {
+			sendResponse(w, r, rp, http.StatusOK)
+		}
+	}
+}
+
 func (a *App) GetVendedores() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var rp models.Respuesta
