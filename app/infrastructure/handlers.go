@@ -1370,10 +1370,19 @@ func (a *App) PutEmailConfig() http.HandlerFunc {
 
 func (a *App) PostEmailConfig() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// 1. Se verifica explícitamente que el método sea POST.
+		if r.Method != http.MethodPost {
+			sendResponse(w, r, models.Respuesta{Status: http.StatusMethodNotAllowed, Mensaje: "Método no permitido, se esperaba POST"}, http.StatusMethodNotAllowed)
+			return
+		}
+
 		var e models.EmailConfig
+		// 2. Se lee el cuerpo (body) de la petición, lo cual es característico de un POST.
 		err := json.NewDecoder(r.Body).Decode(&e)
 		if err != nil {
 			log.Printf("Unable to decode the request body.  %v", err)
+			sendResponse(w, r, models.Respuesta{Status: http.StatusBadRequest, Mensaje: "Cuerpo de la solicitud inválido: " + err.Error()}, http.StatusBadRequest)
+			return
 		}
 		rp := a.DB.AddEmailConfig(e)
 		if rp.Status >= 400 {

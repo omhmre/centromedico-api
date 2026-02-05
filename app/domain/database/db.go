@@ -99,8 +99,10 @@ type PostDB interface {
 	DelProveedor(e models.Id) models.Respuesta
 	AddCompra(c models.Compra) models.Respuesta
 	GetEmailConfig() ([]models.EmailConfig, models.Respuesta)
+	AddEmailConfig(i models.EmailConfig) models.Respuesta
 	SendMail(f models.MailSend)
 	UpdEmailConfig(i models.EmailConfig) models.Respuesta
+	DelEmailConfig(i models.Id) models.Respuesta
 	GetVentas(f models.Fechas) ([]models.VentasResumen, models.Respuesta)
 	PostNotaEntrega(p models.IdFactura) models.Respuesta
 	GetInventarioFormal() ([]models.Inventario, models.Respuesta)
@@ -699,6 +701,47 @@ func (d *DB) GetEmailConfig() ([]models.EmailConfig, models.Respuesta) {
 	rp.Status = 10
 	rp.Mensaje = "Parametros listado correctamente!"
 	return emailConfigs, rp
+}
+
+func (d *DB) AddEmailConfig(i models.EmailConfig) models.Respuesta {
+	var rp models.Respuesta
+	resp, err := d.db.Exec(sqlAddEmailConfig, i.Smtp, i.Port, i.Usuario, i.Clave, i.Tls)
+	if err != nil {
+		rp.Status = 501
+		rp.Mensaje = "No se pudo Agregar la Informacion de Configuración de Correo. " + err.Error()
+		return rp
+	}
+	datos, err1 := resp.RowsAffected()
+	if err1 != nil {
+		rp.Status = 502
+		rp.Mensaje = err1.Error()
+	} else if datos > 0 {
+		rp.Status = 200
+		rp.Mensaje = strconv.FormatInt(datos, 10) + " Configuración de Correo Agregada Correctamente"
+	} else {
+		rp.Status = 201
+		rp.Mensaje = "No se agregó la configuración!"
+	}
+	return rp
+}
+
+func (d *DB) DelEmailConfig(i models.Id) models.Respuesta {
+	var rp models.Respuesta
+	resp, err := d.db.Exec(sqlDelEmailConfig, i.Id)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "No se pudo Eliminar la Configuración de Correo. " + err.Error()
+		return rp
+	}
+	datos, err1 := resp.RowsAffected()
+	if err1 != nil {
+		rp.Status = 500
+		rp.Mensaje = err1.Error()
+	} else if datos > 0 {
+		rp.Mensaje = strconv.FormatInt(datos, 10) + " Registro Eliminado Correctamente"
+		rp.Status = 200
+	}
+	return rp
 }
 
 func (d *DB) SendMail(f models.MailSend) {

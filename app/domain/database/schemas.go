@@ -520,6 +520,7 @@ const sqlGetEmailConfig = `SELECT id, smtp, puerto, usuario, clave, tls FROM emp
 
 const sqlUpdEmailConfig = `UPDATE empre001.emailconfig
 SET smtp=$2, puerto=$3, usuario=$4, clave=$5, tls=$6 where id = $1;`
+
 const sqlAddEmailConfig = `INSERT INTO empre001.emailconfig
 (smtp, puerto, usuario, clave, tls)
 VALUES($1, $2, $3, $4, $5);`
