@@ -214,7 +214,7 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/delcompra", a.DelCompra())
 
 	// Email Config
-	a.Router.HandleFunc("/postemailconfig", a.GetEmailConfig())
+	a.Router.HandleFunc("/getemailconfig", a.GetEmailConfig())
 	a.Router.HandleFunc("/putemailconfig", a.PutEmailConfig())
 
 	// presupuestos

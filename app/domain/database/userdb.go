@@ -217,95 +217,73 @@ func generateJWT(strUsuario string, horas int) (string, error) {
 
 func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 	var rp models.Respuesta
+	var correo, nombre string
 
-	rows, err := d.db.Query(`SELECT u.correo FROM seguridad.usuarios u where u.codigo = $1;`, u.Codigo)
+	// 1. Obtener correo y nombre del usuario
+	row := d.db.QueryRow(`SELECT u.correo, u.nombre FROM seguridad.usuarios u WHERE u.codigo = $1;`, u.Codigo)
+	err := row.Scan(&correo, &nombre)
 	if err != nil {
-		rp.Status = 51
-		rp.Mensaje = err.Error()
+		if err == sql.ErrNoRows {
+			rp.Status = 404
+			rp.Mensaje = "Usuario no encontrado."
+		} else {
+			rp.Status = 500
+			rp.Mensaje = "Error al consultar el usuario: " + err.Error()
+		}
+		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
-	defer rows.Close()
-	var correo = ""
-	for rows.Next() {
-		rows.Scan(
-			&correo,
-		)
-	}
-
-	// utils.CreateLog("estes es el correo " + correo)
 
 	if correo != "" {
-		// Generate a random password
-		clave := crearClave()
-		// Send the new password to the user
-		row2, err2 := d.db.Exec(
-			`UPDATE seguridad.usuarios SET clave = $1 where codigo = $2;`, clave, u.Codigo)
-		if err2 != nil {
-			utils.CreateLog(err2.Error())
+		// 2. Generar una nueva contraseña aleatoria
+		originalClave := strconv.Itoa(crearClave())
+
+		// 3. Hashear la nueva contraseña para almacenamiento seguro
+		hashedClaveBytes, errHash := bcrypt.GenerateFromPassword([]byte(originalClave), bcrypt.DefaultCost)
+		if errHash != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error al hashear la nueva contraseña: " + errHash.Error()
+			utils.CreateLog(rp.Mensaje)
+			return rp
 		}
-		nreg, err3 := row2.RowsAffected()
-		if err3 != nil {
-			utils.CreateLog(err3.Error())
+		hashedClave := string(hashedClaveBytes)
+
+		// 4. Actualizar la contraseña hasheada en la base de datos
+		resp, errUpdate := d.db.Exec(`UPDATE seguridad.usuarios SET clave = $1 WHERE codigo = $2;`, hashedClave, u.Codigo)
+		if errUpdate != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error al actualizar la contraseña en la base de datos: " + errUpdate.Error()
+			utils.CreateLog(rp.Mensaje)
+			return rp
 		}
+
+		nreg, _ := resp.RowsAffected()
 		if nreg == 1 {
-			//*** proceso de envio de correo
-			var strHtml = `
-				<!DOCTYPE html>
-				<html>
-				<head>
-					<title>Cambio de Clave</title>
-					<style>
-						body {
-							font-family: Arial, sans-serif;
-							background-color: #f4f4f9;
-							color: #333;
-							line-height: 1.6;
-						}
-						.container {
-							max-width: 600px;
-							margin: 20px auto;
-							background: #fff;
-							padding: 20px;
-							border-radius: 8px;
-							box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-						}
-						h2 {
-							color: #007BFF;
-						}
-						.footer {
-							margin-top: 20px;
-							font-size: 0.9em;
-							color: #666;
-						}
-					</style>
-				</head>
-				<body>
-					<div class="container">
-						<h2>¡Cambio de Clave Exitoso!</h2>
-						<p>Estimado usuario,</p>
-						<p>Su nueva clave de acceso al sistema es:</p>
-						<p style="font-size: 1.5em; font-weight: bold; color: #007BFF;">` + strconv.Itoa(clave) + `</p>
-						<p>Por favor, utilice esta clave para acceder al sistema. Le recomendamos cambiarla una vez que haya iniciado sesión.</p>
-						<p>Si no solicitó este cambio, por favor contacte a nuestro equipo de soporte de inmediato.</p>
-						<div class="footer">
-							<p>Atentamente,</p>
-							<p>El equipo de soporte de Centro Médico</p>
-						</div>
-					</div>
-				</body>
-				</html>
-			`
-			enviaCorreoGmail("Cambio de Clave", strHtml, correo)
+			// 5. Enviar correo con la contraseña ORIGINAL usando el método centralizado
+			subject := "Departamento de Seguridad - Cambio de Contraseña"
+			emailBody := fmt.Sprintf("Hola %s,\n\nSe ha solicitado un cambio de contraseña para su usuario en Admin.\n\nSus nuevas credenciales son:\nCódigo de Usuario: %s\nContraseña: %s\n\nPor favor, inicie sesión y cambie su contraseña lo antes posible.\n\nSaludos,\nEl equipo de Admin", nombre, u.Codigo, originalClave)
+
+			mailToSend := models.MailSend{
+				To:      correo,
+				Subject: subject,
+				Body:    emailBody,
+			}
+			d.SendMail(mailToSend)
+
+			rp.Status = 200
+			rp.Mensaje = "Clave actualizada. Se ha enviado un correo con la nueva contraseña."
+			return rp
 		}
-		rp.Status = 20
-		rp.Mensaje = "Clave actualizada enviada a su correo"
+
+		rp.Status = 500
+		rp.Mensaje = "No se pudo actualizar la contraseña."
 		return rp
+
 	} else {
-		rp.Status = 503
-		rp.Mensaje = "Usuario no Existe"
+		rp.Status = 404
+		rp.Mensaje = "El usuario no tiene un correo electrónico registrado."
 		return rp
 	}
-
 }
 
 func crearClave() int {

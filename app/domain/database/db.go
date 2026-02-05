@@ -708,27 +708,35 @@ func (d *DB) SendMail(f models.MailSend) {
 	eml, resp := d.GetEmailConfig()
 	// utils.CreateLog(resp.Mensaje)
 
-	if resp.Status != 10 {
+	if resp.Status != 10 || len(eml) == 0 {
 		utils.CreateLog(resp.Mensaje)
+		utils.CreateLog("Error: La configuración de email no está disponible o está vacía.")
+		return
 	}
-	// utils.CreateLog("smtp " + eml[0].Smtp + "puerto " + strconv.Itoa(eml[0].Port) + "usuario " + eml[0].Usuario + " clave " + eml[0].Clave)
+
+	config := eml[0]
+
 	// Destinatarios
 	m.SetHeader("To", f.To)
-	m.SetHeader("From", eml[0].Usuario)
+	m.SetHeader("From", config.Usuario)
 	m.SetHeader("Subject", f.Subject)
 
 	// Cuerpo del correo
 	m.SetBody("text/plain", f.Body)
 
 	// Adjuntar archivo PDF
-	m.Attach(f.Archivo)
+	if f.Archivo != "" {
+		m.Attach(f.Archivo)
+	}
 
 	// Configuración del servidor SMTP
 	// d := mail.NewDialer("smtp.gmail.com", 587, "omhmre@gmail.com", "kxjs haaz cbfr mdtb")
-	dd := mail.NewDialer(eml[0].Smtp, eml[0].Port, eml[0].Usuario, eml[0].Clave)
+	dd := mail.NewDialer(config.Smtp, config.Port, config.Usuario, config.Clave)
 
 	// Habilitar SSL
-	dd.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	// InsecureSkipVerify debe ser false en producción.
+	// Se mantiene en true por ahora para no romper la configuración existente, pero se recomienda cambiarlo.
+	dd.TLSConfig = &tls.Config{InsecureSkipVerify: true} // ADVERTENCIA: Inseguro para producción
 
 	// Enviar el correo
 	if err := dd.DialAndSend(m); err != nil {
