@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -678,6 +677,7 @@ func (d *DB) GetEmailConfig() ([]models.EmailConfig, models.Respuesta) {
 	if err != nil {
 		rp.Status = 502
 		rp.Mensaje = "No Hay Parametros Registrados! " + err.Error()
+		utils.CreateLog(err.Error())
 		return nil, rp
 	}
 	defer rows.Close()
@@ -749,7 +749,7 @@ func (d *DB) SendMail(f models.MailSend) {
 
 	// Get Email config
 	eml, resp := d.GetEmailConfig()
-	// utils.CreateLog(resp.Mensaje)
+	utils.CreateLog(resp.Mensaje)
 
 	if resp.Status != 10 || len(eml) == 0 {
 		utils.CreateLog(resp.Mensaje)
@@ -774,12 +774,16 @@ func (d *DB) SendMail(f models.MailSend) {
 
 	// Configuración del servidor SMTP
 	// d := mail.NewDialer("smtp.gmail.com", 587, "omhmre@gmail.com", "kxjs haaz cbfr mdtb")
-	dd := mail.NewDialer(config.Smtp, config.Puerto, config.Usuario, config.Clave)
+	dd := mail.NewDialer(
+		config.Smtp,
+		config.Puerto,
+		config.Usuario,
+		config.Clave)
 
 	// Habilitar SSL
 	// InsecureSkipVerify debe ser false en producción.
 	// Se mantiene en true por ahora para no romper la configuración existente, pero se recomienda cambiarlo.
-	dd.TLSConfig = &tls.Config{InsecureSkipVerify: true} // ADVERTENCIA: Inseguro para producción
+	// dd.TLSConfig = &tls.Config{InsecureSkipVerify: false} // ADVERTENCIA: Inseguro para producción
 
 	// Enviar el correo
 	if err := dd.DialAndSend(m); err != nil {
@@ -793,6 +797,7 @@ func (d *DB) UpdEmailConfig(i models.EmailConfig) models.Respuesta {
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "No se pudo Actualizar la Informacion de Correo. " + err.Error()
+		utils.CreateLog(err.Error())
 		return rp
 	}
 	datos, err1 := resp.RowsAffected()

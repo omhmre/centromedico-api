@@ -258,7 +258,7 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 		}
 
 		nreg, _ := resp.RowsAffected()
-		if nreg == 1 {
+		if nreg > 0 {
 			// 5. Enviar correo con la contraseña ORIGINAL usando el método centralizado
 			subject := "Departamento de Seguridad - Cambio de Contraseña"
 			emailBody := fmt.Sprintf("Hola %s,\n\nSe ha solicitado un cambio de contraseña para su usuario en Admin.\n\nSus nuevas credenciales son:\nCódigo de Usuario: %s\nContraseña: %s\n\nPor favor, inicie sesión y cambie su contraseña lo antes posible.\n\nSaludos,\nEl equipo de Admin", nombre, u.Codigo, originalClave)
