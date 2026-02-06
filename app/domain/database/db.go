@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -783,11 +784,22 @@ func (d *DB) SendMail(f models.MailSend) {
 	// Habilitar SSL
 	// InsecureSkipVerify debe ser false en producción.
 	// Se mantiene en true por ahora para no romper la configuración existente, pero se recomienda cambiarlo.
-	// dd.TLSConfig = &tls.Config{InsecureSkipVerify: false} // ADVERTENCIA: Inseguro para producción
+	// dd.TLSConfig = &tls.Config{InsecureSkipVerify: true} // ADVERTENCIA: Inseguro para producción
+	// La configuración de TLS/SSL depende del puerto y del servidor.
+	// Puerto 465: Generalmente usa SSL/TLS implícito desde el inicio.
+	// Puerto 587: Generalmente usa STARTTLS (la conexión empieza en texto plano y luego se "actualiza" a TLS).
+	// La librería gopkg.in/mail.v2 maneja esto con el campo `SSL`.
+	// Aquí lo configuramos explícitamente basado en el valor de la base de datos.
+	dd.SSL = config.Tls
+
+	// ADVERTENCIA: InsecureSkipVerify: true es inseguro para producción.
+	// Esto deshabilita la verificación del certificado del servidor SMTP, exponiéndote a ataques.
+	// Deberías configurarlo a `false` en un entorno de producción con un certificado válido.
+	dd.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 
 	// Enviar el correo
 	if err := dd.DialAndSend(m); err != nil {
-		utils.CreateLog(err.Error())
+		utils.CreateLog("Error al enviar correo: " + err.Error())
 	}
 }
 
