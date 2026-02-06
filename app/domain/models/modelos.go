@@ -28,7 +28,7 @@ type MailSend struct {
 type EmailConfig struct {
 	Id      int    `json:"id"`
 	Smtp    string `json:"smtp"`
-	Port    int    `json:"port"`
+	Puerto  int    `json:"puerto"`
 	Usuario string `json:"usuario"`
 	Clave   string `json:"clave"`
 	Tls     bool   `json:"tls"`

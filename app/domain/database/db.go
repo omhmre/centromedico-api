@@ -688,7 +688,7 @@ func (d *DB) GetEmailConfig() ([]models.EmailConfig, models.Respuesta) {
 			rows.Scan(
 				&emailConfig.Id,
 				&emailConfig.Smtp,
-				&emailConfig.Port,
+				&emailConfig.Puerto,
 				&emailConfig.Usuario,
 				&emailConfig.Clave,
 				&emailConfig.Tls,
@@ -705,7 +705,7 @@ func (d *DB) GetEmailConfig() ([]models.EmailConfig, models.Respuesta) {
 
 func (d *DB) AddEmailConfig(i models.EmailConfig) models.Respuesta {
 	var rp models.Respuesta
-	resp, err := d.db.Exec(sqlAddEmailConfig, i.Smtp, i.Port, i.Usuario, i.Clave, i.Tls)
+	resp, err := d.db.Exec(sqlAddEmailConfig, i.Smtp, i.Puerto, i.Usuario, i.Clave, i.Tls)
 	if err != nil {
 		rp.Status = 501
 		rp.Mensaje = "No se pudo Agregar la Informacion de Configuración de Correo. " + err.Error()
@@ -774,7 +774,7 @@ func (d *DB) SendMail(f models.MailSend) {
 
 	// Configuración del servidor SMTP
 	// d := mail.NewDialer("smtp.gmail.com", 587, "omhmre@gmail.com", "kxjs haaz cbfr mdtb")
-	dd := mail.NewDialer(config.Smtp, config.Port, config.Usuario, config.Clave)
+	dd := mail.NewDialer(config.Smtp, config.Puerto, config.Usuario, config.Clave)
 
 	// Habilitar SSL
 	// InsecureSkipVerify debe ser false en producción.
@@ -789,7 +789,7 @@ func (d *DB) SendMail(f models.MailSend) {
 
 func (d *DB) UpdEmailConfig(i models.EmailConfig) models.Respuesta {
 	var rp models.Respuesta
-	resp, err := d.db.Exec(sqlUpdEmailConfig, i.Id, i.Smtp, i.Port, i.Usuario, i.Clave, i.Tls)
+	resp, err := d.db.Exec(sqlUpdEmailConfig, i.Id, i.Smtp, i.Puerto, i.Usuario, i.Clave, i.Tls)
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "No se pudo Actualizar la Informacion de Correo. " + err.Error()
