@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,12 +11,14 @@ import (
 
 	"github.com/robfig/cron"
 	"omhmre.com/centromedico/app/domain/database"
-	"omhmre.com/centromedico/app/domain/utils"
 	app "omhmre.com/centromedico/app/infrastructure"
 	"omhmre.com/centromedico/app/websocket"
 )
 
 func main() {
+	// Configurar un logger estructurado para toda la aplicación
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	// Cargar variables de entorno (usando tu sistema actual)
 	database.FetchVars()
 
@@ -30,12 +32,12 @@ func main() {
 	// Conexión a la base de datos
 	app.DB = &database.DB{}
 	if err := app.DB.Open(); err != nil {
-		utils.CreateLog(fmt.Sprintf("Error al abrir la conexión a la base de datos: %v", err))
+		logger.Error("Error al abrir la conexión a la base de datos", "error", err)
 		os.Exit(1)
 	}
 	defer func() {
 		if err := app.DB.Close(); err != nil {
-			utils.CreateLog(fmt.Sprintf("Error al cerrar la conexión a la base de datos: %v", err))
+			logger.Error("Error al cerrar la conexión a la base de datos", "error", err)
 		}
 	}()
 
@@ -43,20 +45,21 @@ func main() {
 	c := cron.New()
 	backupSchedule := database.HORABACK + " " + database.MINUTOBACK + " * * *"
 	if err := c.AddFunc(backupSchedule, func() {
-		if err := app.DB.BackupDatabase(); err != nil {
-			utils.CreateLog(fmt.Sprintf("Error en backup de base de datos: %v", err))
+		logger.Info("Iniciando backup de base de datos...")
+		if errDb := app.DB.BackupDatabase(); errDb != nil {
+			logger.Error("Error en backup de base de datos", "error", errDb)
 		} else {
-			utils.CreateLog("Backup de base de datos completado exitosamente")
+			logger.Info("Backup de base de datos completado exitosamente")
 		}
 	}); err != nil {
-		utils.CreateLog(fmt.Sprintf("Error al programar el backup: %v", err))
+		logger.Error("Error al programar el backup", "error", err)
 	}
 	c.Start()
 	defer c.Stop()
 
 	// Configurar servidor HTTP con graceful shutdown
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%s", database.PUERTOAPP),
+		Addr:    ":" + database.PUERTOAPP,
 		Handler: app.WrapWithCORS(app.Router), // Usar el router de la app con CORS
 		// Add a timeout for the server to gracefully shut down
 		ReadTimeout:  10 * time.Second,
@@ -69,24 +72,24 @@ func main() {
 
 	// Iniciar servidor en goroutine
 	go func() {
-		utils.CreateLog(fmt.Sprintf("Servidor iniciado en el puerto %s", database.PUERTOAPP))
+		logger.Info("Servidor iniciado", "puerto", database.PUERTOAPP)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			utils.CreateLog(fmt.Sprintf("Error al iniciar el servidor: %v", err))
+			logger.Error("Error al iniciar el servidor", "error", err)
 			os.Exit(1)
 		}
 	}()
 
 	// Esperar señal de terminación
 	<-stop
-	utils.CreateLog("Recibida señal de apagado, iniciando cierre...")
+	logger.Info("Recibida señal de apagado, iniciando cierre...")
 
 	// Contexto con timeout para el cierre
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		utils.CreateLog(fmt.Sprintf("Error durante el cierre del servidor: %v", err))
+		logger.Error("Error durante el cierre del servidor", "error", err)
 	} else {
-		utils.CreateLog("Servidor detenido correctamente")
+		logger.Info("Servidor detenido correctamente")
 	}
 }

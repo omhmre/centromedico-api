@@ -100,7 +100,7 @@ type PostDB interface {
 	AddCompra(c models.Compra) models.Respuesta
 	GetEmailConfig() ([]models.EmailConfig, models.Respuesta)
 	AddEmailConfig(i models.EmailConfig) models.Respuesta
-	SendMail(f models.MailSend)
+	SendMail(f models.MailSend) error
 	UpdEmailConfig(i models.EmailConfig) models.Respuesta
 	DelEmailConfig(i models.Id) models.Respuesta
 	GetVentas(f models.Fechas) ([]models.VentasResumen, models.Respuesta)
@@ -745,7 +745,7 @@ func (d *DB) DelEmailConfig(i models.Id) models.Respuesta {
 	return rp
 }
 
-func (d *DB) SendMail(f models.MailSend) {
+func (d *DB) SendMail(f models.MailSend) error {
 	m := mail.NewMessage()
 
 	// Get Email config
@@ -754,8 +754,7 @@ func (d *DB) SendMail(f models.MailSend) {
 
 	if resp.Status != 10 || len(eml) == 0 {
 		utils.CreateLog(resp.Mensaje)
-		utils.CreateLog("Error: La configuración de email no está disponible o está vacía.")
-		return
+		return fmt.Errorf("Error: La configuración de email no está disponible o está vacía: %s", resp.Mensaje)
 	}
 
 	config := eml[0]
@@ -800,7 +799,9 @@ func (d *DB) SendMail(f models.MailSend) {
 	// Enviar el correo
 	if err := dd.DialAndSend(m); err != nil {
 		utils.CreateLog("Error al enviar correo: " + err.Error())
+		return fmt.Errorf("Error al enviar correo: %w", err)
 	}
+	return nil
 }
 
 func (d *DB) UpdEmailConfig(i models.EmailConfig) models.Respuesta {

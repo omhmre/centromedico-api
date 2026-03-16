@@ -1,11 +1,9 @@
 package database
 
 import (
-	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"math/rand"
-	"net/smtp"
 	"strconv"
 	"time"
 
@@ -219,6 +217,8 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 	var rp models.Respuesta
 	var correo, nombre string
 
+	utils.CreateLog(fmt.Sprintf("ChangePassword: Attempting to change password for user %s", u.Codigo))
+
 	// 1. Obtener correo y nombre del usuario
 	row := d.db.QueryRow(`SELECT u.correo, u.nombre FROM seguridad.usuarios u WHERE u.codigo = $1;`, u.Codigo)
 	err := row.Scan(&correo, &nombre)
@@ -229,8 +229,8 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 		} else {
 			rp.Status = 500
 			rp.Mensaje = "Error al consultar el usuario: " + err.Error()
+			utils.CreateLog(fmt.Sprintf("ChangePassword: Error querying user %s: %v", u.Codigo, err))
 		}
-		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
 
@@ -246,6 +246,8 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 			utils.CreateLog(rp.Mensaje)
 			return rp
 		}
+		utils.CreateLog(fmt.Sprintf("ChangePassword: Hashed new password for user %s.", u.Codigo))
+
 		hashedClave := string(hashedClaveBytes)
 
 		// 4. Actualizar la contraseña hasheada en la base de datos
@@ -253,12 +255,14 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 		if errUpdate != nil {
 			rp.Status = 500
 			rp.Mensaje = "Error al actualizar la contraseña en la base de datos: " + errUpdate.Error()
-			utils.CreateLog(rp.Mensaje)
+			utils.CreateLog(fmt.Sprintf("ChangePassword: Error updating password in DB for user %s: %v", u.Codigo, errUpdate))
 			return rp
 		}
+		utils.CreateLog(fmt.Sprintf("ChangePassword: Database update attempted for user %s.", u.Codigo))
 
 		nreg, _ := resp.RowsAffected()
 		if nreg > 0 {
+			utils.CreateLog(fmt.Sprintf("ChangePassword: Password updated in DB for user %s. Rows affected: %d", u.Codigo, nreg))
 			// 5. Enviar correo con la contraseña ORIGINAL usando el método centralizado
 			subject := "Departamento de Seguridad - Cambio de Contraseña"
 			emailBody := fmt.Sprintf("Hola %s,\n\nSe ha solicitado un cambio de contraseña para su usuario en Admin.\n\nSus nuevas credenciales son:\nCódigo de Usuario: %s\nContraseña: %s\n\nPor favor, inicie sesión y cambie su contraseña lo antes posible.\n\nSaludos,\nEl equipo de Admin", nombre, u.Codigo, originalClave)
@@ -268,20 +272,29 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 				Subject: subject,
 				Body:    emailBody,
 			}
-			d.SendMail(mailToSend)
+			errMail := d.SendMail(mailToSend) // Now SendMail returns an error
+			if errMail != nil {
+				rp.Status = 500
+				rp.Mensaje = "Clave actualizada en DB, pero falló el envío del correo: " + errMail.Error()
+				utils.CreateLog(rp.Mensaje)
+				return rp
+			}
 
 			rp.Status = 200
 			rp.Mensaje = "Clave actualizada. Se ha enviado un correo con la nueva contraseña."
+			utils.CreateLog(fmt.Sprintf("ChangePassword: Password reset email sent successfully for user %s.", u.Codigo))
 			return rp
 		}
 
 		rp.Status = 500
 		rp.Mensaje = "No se pudo actualizar la contraseña."
+		utils.CreateLog(fmt.Sprintf("ChangePassword: No rows affected when updating password for user %s.", u.Codigo))
 		return rp
 
 	} else {
 		rp.Status = 404
 		rp.Mensaje = "El usuario no tiene un correo electrónico registrado."
+		utils.CreateLog(fmt.Sprintf("ChangePassword: User %s has no email registered.", u.Codigo))
 		return rp
 	}
 }
@@ -290,105 +303,6 @@ func crearClave() int {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	clave := r.Intn(1000000)
 	return clave
-}
-
-func enviaCorreo(strEncabezado string, strHtml string, strCorreo string) {
-	// Set up authentication information
-	auth := smtp.PlainAuth("", "cio@nanocodigo.com", "mangocodigo2020*", "mail.nanocodigo.com")
-
-	// Set up the SMTP server
-	tlsconfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         "mail.nanocodigo.com",
-	}
-	conn, err := tls.Dial("tcp", "mail.nanocodigo.com:465", tlsconfig)
-	if err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-	defer conn.Close()
-
-	// Create a new SMTP client
-	client, err := smtp.NewClient(conn, "mail.nanocodigo.com")
-	if err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-	defer client.Quit()
-
-	// Authenticate the client
-	if err := client.Auth(auth); err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-
-	// Set up the message
-	msg := fmt.Sprintf("To: %s\r\n"+
-		"Subject: Sistema de Correo de NanoCodigo\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=UTF-8\r\n\r\n"+
-		"%s\r\n\r\n"+
-		"%s", strCorreo, strEncabezado, strHtml)
-
-	// Send the message
-	if err := client.Mail("cio@nanocodigo.com"); err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-	if err := client.Rcpt(strCorreo); err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-	w, err := client.Data()
-	if err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-	_, err = w.Write([]byte(msg))
-	if err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-	err = w.Close()
-	if err != nil {
-		utils.CreateLog(err.Error())
-		return
-	}
-}
-
-func enviaCorreoGmail(strEncabezado string, strHtml string, strCorreo string) {
-	// Información de autenticación para Gmail
-	from := "omhmre@gmail.com"        // Consider making this configurable
-	password := "gtct foke zsxd abaw" // ¡Reemplaza con tu contraseña real!
-	to := []string{strCorreo}
-
-	// Servidor SMTP de Gmail
-	smtpHost := "smtp.gmail.com"
-	smtpPort := "587"
-
-	// Dirección del servidor SMTP
-	addr := smtpHost + ":" + smtpPort
-
-	// Configuración de la autenticación
-	auth := smtp.PlainAuth("", from, password, smtpHost)
-
-	// Construcción del mensaje
-	msg := []byte("To: " + strCorreo + "\r\n" +
-		"Subject: " + strEncabezado + "\r\n" +
-		"MIME-Version: 1.0\r\n" +
-		"Content-Type: text/html; charset=UTF-8\r\n\r\n" +
-		strHtml + "\r\n")
-
-	// Envío del correo electrónico
-	err := smtp.SendMail(addr, auth, from, to, msg)
-	if err != nil {
-		fmt.Println("Error al enviar el correo:", err)
-		// Aquí puedes agregar tu lógica de logging de errores (reemplazando utils.CreateLog)
-		return
-	}
-
-	fmt.Println("Correo enviado exitosamente a:", strCorreo)
-	// Aquí puedes agregar tu lógica de logging de éxito
 }
 
 func (d *DB) DelUsuario(i models.Id) models.Respuesta {
