@@ -516,7 +516,7 @@ const sqlInsertCxp = `INSERT INTO empre001.cxp (
               $9
               );`
 
-const sqlGetEmailConfig = `SELECT id, smtp, puerto, usuario, clave, tls FROM empre001.emailconfig;`
+const sqlGetEmailConfig = `SELECT id, smtp, puerto, usuario, clave, tls FROM empre001.emailconfig`
 
 const sqlUpdEmailConfig = `UPDATE empre001.emailconfig
 SET smtp=$2, puerto=$3, usuario=$4, clave=$5, tls=$6 where id = $1;`
