@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -12,19 +13,20 @@ import (
 
 // Variables públicas
 var (
-	DB_SERVER    string
-	DB_USER      string
-	DB_PASSWORD  string
-	DB_NAME      string
-	DB_PORT      string
-	DB_POOL_MODE string
-	DB_SSL_MODE  string
-	dbinfo       string
-	PUERTOAPP    string
-	SECRET_KEY   string
-	TIEMPO       string
-	HORABACK     string
-	MINUTOBACK   string
+	DB_SERVER                  string
+	DB_USER                    string
+	DB_PASSWORD                string
+	DB_NAME                    string
+	DB_PORT                    string
+	DB_POOL_MODE               string
+	DB_SSL_MODE                string
+	dbinfo                     string
+	PUERTOAPP                  string
+	SECRET_KEY                 string
+	TIEMPO                     string
+	HORABACK                   string
+	MINUTOBACK                 string
+	EMAIL_INSECURE_SKIP_VERIFY bool
 )
 
 // Constantes para valores por defecto
@@ -55,6 +57,19 @@ func FetchVars() {
 	DB_SSL_MODE = getEnv("SSL_MODE", "disable") // Por defecto 'disable' para desarrollo local
 	SECRET_KEY = os.Getenv("SECRET_KEY")
 	TIEMPO = os.Getenv("TIEMPO")
+
+	// Nuevo: Controla la verificación del certificado TLS para el envío de correos.
+	// Por defecto es 'true' para no romper la configuración existente, pero se recomienda 'false' para producción.
+	insecureSkip, err := strconv.ParseBool(getEnv("EMAIL_INSECURE_SKIP_VERIFY", "true"))
+	if err != nil {
+		utils.CreateLog("Advertencia: Valor inválido para EMAIL_INSECURE_SKIP_VERIFY. Usando 'true' por defecto.")
+		EMAIL_INSECURE_SKIP_VERIFY = true
+	} else {
+		EMAIL_INSECURE_SKIP_VERIFY = insecureSkip
+	}
+	if EMAIL_INSECURE_SKIP_VERIFY {
+		utils.CreateLog("ADVERTENCIA DE SEGURIDAD: EMAIL_INSECURE_SKIP_VERIFY está en 'true'. Esto es inseguro para producción.")
+	}
 
 	// Resolve hostname to IPv4 to avoid potential IPv6 connection issues
 	dbHost := DB_SERVER

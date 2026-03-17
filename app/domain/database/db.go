@@ -98,7 +98,7 @@ type PostDB interface {
 	UpdProveedor(e models.Proveedor) models.Respuesta
 	DelProveedor(e models.Id) models.Respuesta
 	AddCompra(c models.Compra) models.Respuesta
-	GetEmailConfig() ([]models.EmailConfig, models.Respuesta)
+	GetEmailConfig() (models.EmailConfig, models.Respuesta)
 	AddEmailConfig(i models.EmailConfig) models.Respuesta
 	SendMail(f models.MailSend) error
 	UpdEmailConfig(i models.EmailConfig) models.Respuesta
@@ -669,39 +669,37 @@ func (d *DB) GetParametros() ([]models.Parametros, models.Respuesta) {
 	return parametros, rp
 }
 
-func (d *DB) GetEmailConfig() ([]models.EmailConfig, models.Respuesta) {
+func (d *DB) GetEmailConfig() (models.EmailConfig, models.Respuesta) {
 	var rp models.Respuesta
-	emailConfig := models.EmailConfig{}
-	emailConfigs := []models.EmailConfig{}
+	var emailConfig models.EmailConfig
 
-	rows, err := d.db.Query(sqlGetEmailConfig)
+	// Usamos QueryRow porque solo esperamos una configuración (o ninguna).
+	// Agregamos LIMIT 1 para asegurarnos de que solo se devuelva una fila.
+	row := d.db.QueryRow(sqlGetEmailConfig + " LIMIT 1")
+
+	err := row.Scan(
+		&emailConfig.Id,
+		&emailConfig.Smtp,
+		&emailConfig.Puerto,
+		&emailConfig.Usuario,
+		&emailConfig.Clave,
+		&emailConfig.Tls,
+	)
+
 	if err != nil {
-		rp.Status = 502
-		rp.Mensaje = "No Hay Parametros Registrados! " + err.Error()
-		utils.CreateLog(err.Error())
-		return nil, rp
-	}
-	defer rows.Close()
-	// emailConfigs := []models.EmailConfig{}
-
-	for rows.Next() {
-		err2 :=
-			rows.Scan(
-				&emailConfig.Id,
-				&emailConfig.Smtp,
-				&emailConfig.Puerto,
-				&emailConfig.Usuario,
-				&emailConfig.Clave,
-				&emailConfig.Tls,
-			)
-		if err2 != nil {
-			utils.CreateLog(err2.Error())
+		if err == sql.ErrNoRows {
+			rp.Status = 200
+			rp.Mensaje = "No se encontró configuración de email, se devolverá un objeto vacío."
+			return models.EmailConfig{}, rp
 		}
-		emailConfigs = append(emailConfigs, emailConfig)
+		rp.Status = 500
+		rp.Mensaje = "Error al consultar la configuración de email: " + err.Error()
+		return models.EmailConfig{}, rp
 	}
-	rp.Status = 10
-	rp.Mensaje = "Parametros listado correctamente!"
-	return emailConfigs, rp
+
+	rp.Status = 200
+	rp.Mensaje = "Configuración de email obtenida correctamente."
+	return emailConfig, rp
 }
 
 func (d *DB) AddEmailConfig(i models.EmailConfig) models.Respuesta {
@@ -746,61 +744,67 @@ func (d *DB) DelEmailConfig(i models.Id) models.Respuesta {
 }
 
 func (d *DB) SendMail(f models.MailSend) error {
-	m := mail.NewMessage()
-
-	// Get Email config
-	eml, resp := d.GetEmailConfig()
-	utils.CreateLog(resp.Mensaje)
-
-	if resp.Status != 10 || len(eml) == 0 {
-		utils.CreateLog(resp.Mensaje)
-		return fmt.Errorf("Error: La configuración de email no está disponible o está vacía: %s", resp.Mensaje)
+	// 1. Obtener la configuración de email de forma segura.
+	config, resp := d.GetEmailConfig()
+	if resp.Status >= 400 {
+		// Si hubo un error de DB, resp.Mensaje ya tiene los detalles.
+		utils.CreateLog("SendMail: " + resp.Mensaje)
+		return fmt.Errorf("no se pudo obtener la configuración de email: %s", resp.Mensaje)
 	}
 
-	config := eml[0]
+	// 2. Validar que la configuración no esté vacía.
+	if config.Smtp == "" {
+		msg := "SendMail: La configuración de email no está definida en la base de datos."
+		utils.CreateLog(msg)
+		return fmt.Errorf(msg)
+	}
 
-	// Destinatarios
-	m.SetHeader("To", f.To)
+	// 3. Construir el mensaje de correo.
+	m := mail.NewMessage()
 	m.SetHeader("From", config.Usuario)
+	m.SetHeader("To", f.To)
 	m.SetHeader("Subject", f.Subject)
-
-	// Cuerpo del correo
 	m.SetBody("text/plain", f.Body)
 
-	// Adjuntar archivo PDF
+	// Adjuntar archivo si se proporciona, validando su existencia.
 	if f.Archivo != "" {
+		if _, err := os.Stat(f.Archivo); os.IsNotExist(err) {
+			msg := fmt.Sprintf("SendMail: El archivo adjunto '%s' no existe.", f.Archivo)
+			utils.CreateLog(msg)
+			return fmt.Errorf(msg)
+		}
 		m.Attach(f.Archivo)
 	}
 
-	// Configuración del servidor SMTP
-	// d := mail.NewDialer("smtp.gmail.com", 587, "omhmre@gmail.com", "kxjs haaz cbfr mdtb")
-	dd := mail.NewDialer(
-		config.Smtp,
-		config.Puerto,
-		config.Usuario,
-		config.Clave)
+	// 4. Configurar el Dialer de SMTP de forma robusta.
+	// Convertir puerto de string a int, con validación.
+	// port, err := strconv.Atoi(config.Puerto)
+	// if err != nil {
+	// 	msg := fmt.Sprintf("SendMail: El puerto en la configuración de email no es un número válido: '%s'", config.Puerto)
+	// 	utils.CreateLog(msg)
+	// 	return fmt.Errorf(msg)
+	// }
 
-	// Habilitar SSL
-	// InsecureSkipVerify debe ser false en producción.
-	// Se mantiene en true por ahora para no romper la configuración existente, pero se recomienda cambiarlo.
-	// dd.TLSConfig = &tls.Config{InsecureSkipVerify: true} // ADVERTENCIA: Inseguro para producción
-	// La configuración de TLS/SSL depende del puerto y del servidor.
-	// Puerto 465: Generalmente usa SSL/TLS implícito desde el inicio.
-	// Puerto 587: Generalmente usa STARTTLS (la conexión empieza en texto plano y luego se "actualiza" a TLS).
-	// La librería gopkg.in/mail.v2 maneja esto con el campo `SSL`.
-	// Aquí lo configuramos explícitamente basado en el valor de la base de datos.
-	dd.SSL = config.Tls
+	dialer := mail.NewDialer(config.Smtp, config.Puerto, config.Usuario, config.Clave)
 
-	// ADVERTENCIA: InsecureSkipVerify: true es inseguro para producción.
-	// Esto deshabilita la verificación del certificado del servidor SMTP, exponiéndote a ataques.
-	// Deberías configurarlo a `false` en un entorno de producción con un certificado válido.
-	dd.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	// 5. Configurar TLS/SSL de forma segura.
+	// La librería `gopkg.in/mail.v2` maneja STARTTLS automáticamente en el puerto 587
+	// si `dialer.SSL` es `false`. Si el puerto es 465, `dialer.SSL` debe ser `true`.
+	// La variable `config.Tls` (booleana) de la DB controla esto.
+	dialer.SSL = config.Tls
 
-	// Enviar el correo
-	if err := dd.DialAndSend(m); err != nil {
-		utils.CreateLog("Error al enviar correo: " + err.Error())
-		return fmt.Errorf("Error al enviar correo: %w", err)
+	// `InsecureSkipVerify` es un riesgo de seguridad. Su valor se controla ahora
+	// desde una variable de entorno `EMAIL_INSECURE_SKIP_VERIFY`.
+	dialer.TLSConfig = &tls.Config{InsecureSkipVerify: EMAIL_INSECURE_SKIP_VERIFY}
+
+	// 6. Enviar el correo.
+	if err := dialer.DialAndSend(m); err != nil {
+		msg := fmt.Sprintf("SendMail: Error al enviar correo a través de %s:%s. Error: %v", config.Smtp, config.Puerto, err)
+		utils.CreateLog(msg)
+		return fmt.Errorf("error al enviar correo: %w", err)
 	}
+
+	utils.CreateLog(fmt.Sprintf("Correo enviado exitosamente a %s", f.To))
 	return nil
 }
 

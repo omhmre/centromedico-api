@@ -1332,19 +1332,17 @@ func (a *App) SendVentasMail() http.HandlerFunc {
 
 func (a *App) GetEmailConfig() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var rp models.Respuesta
-		datos, err := a.DB.GetEmailConfig()
-		if err.Status > 200 {
-			rp.Status = err.Status
-			rp.Mensaje = "Error Cargando Configuracion"
-		}
-		rp.Status = 10
-		rp.Mensaje = "Parametros listados correctamente!"
-		data := json.NewEncoder(w).Encode(datos)
-		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+		config, dbResp := a.DB.GetEmailConfig()
+
+		// Si el status es de error (ej. 500), enviamos la respuesta de error.
+		if dbResp.Status >= 400 {
+			sendResponse(w, r, dbResp, dbResp.Status)
 			return
 		}
+
+		// Si no hay error, db.GetEmailConfig ya devuelve el objeto correcto
+		// (la configuración o uno vacío), y un status 200.
+		sendResponse(w, r, config, http.StatusOK)
 	}
 }
 
