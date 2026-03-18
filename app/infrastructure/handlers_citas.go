@@ -245,6 +245,80 @@ func (a *App) UpdPaciente() http.HandlerFunc {
 	}
 }
 
+func (a *App) UpdPacienteMatricula() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var paciente models.PacientesModel
+		err := json.NewDecoder(r.Body).Decode(&paciente)
+		if err != nil {
+			respuesta := models.Respuesta{
+				Status:  http.StatusBadRequest,
+				Mensaje: "Cuerpo de la solicitud inválido: " + err.Error(),
+			}
+			sendResponse(w, r, respuesta, http.StatusBadRequest)
+			return
+		}
+		// Basic validation
+		if paciente.Id == 0 || paciente.Matricula == nil {
+			respuesta := models.Respuesta{
+				Status:  http.StatusBadRequest,
+				Mensaje: "El ID del paciente y el valor de la matrícula son requeridos.",
+			}
+			sendResponse(w, r, respuesta, http.StatusBadRequest)
+			return
+		}
+
+		rp := a.DB.UpdPacienteMatricula(paciente)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, rp.Status) // Use status from response
+		} else {
+			sendResponse(w, r, rp, http.StatusOK)
+		}
+	}
+}
+
+func (a *App) UpdPacienteStatus() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var paciente models.PacientesModel
+		err := json.NewDecoder(r.Body).Decode(&paciente)
+		if err != nil {
+			respuesta := models.Respuesta{
+				Status:  http.StatusBadRequest,
+				Mensaje: "Cuerpo de la solicitud inválido: " + err.Error(),
+			}
+			sendResponse(w, r, respuesta, http.StatusBadRequest)
+			return
+		}
+
+		// Basic validation
+		if paciente.Id == 0 || paciente.Status == nil || *paciente.Status == "" {
+			respuesta := models.Respuesta{
+				Status:  http.StatusBadRequest,
+				Mensaje: "El ID del paciente y el valor del status son requeridos.",
+			}
+			sendResponse(w, r, respuesta, http.StatusBadRequest)
+			return
+		}
+
+		// Optional: more specific validation for status value
+		status := *paciente.Status
+		if status != "ACTIVO" && status != "INACTIVO" {
+			respuesta := models.Respuesta{
+				Status:  http.StatusBadRequest,
+				Mensaje: "El valor del status debe ser 'ACTIVO' o 'INACTIVO'.",
+			}
+			sendResponse(w, r, respuesta, http.StatusBadRequest)
+			return
+		}
+
+		rp := a.DB.UpdPacienteStatus(paciente)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, rp.Status) // Use status from response
+		} else {
+			sendResponse(w, r, rp, http.StatusOK)
+		}
+	}
+}
+
 func (a *App) DelPaciente() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var paciente models.PacientesModel

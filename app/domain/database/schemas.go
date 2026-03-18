@@ -536,16 +536,20 @@ const sqlUpdDoctores = `update medi001.doctores set
 nombres = $2, espec = $3, dir = $4, tlf = $5, correo = $6, whatsapp = $7, instagram = $8, tasapago = $9 
 where id = $1;`
 
-const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at
+const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at
 FROM medi001.pacientes;`
 
 const sqlPostPaciente = `INSERT INTO medi001.pacientes
-(cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id;`
+(cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
 
 const sqlUpdPaciente = `UPDATE medi001.pacientes
-SET cedula=$2, nombres=$3, fenac=$4, representante=$5, whatsapp=$6, direccion=$7, correo=$8, diagnostico=$9, cxc=$10
+SET cedula=$2, nombres=$3, fenac=$4, matricula=$5, status=$6, representante=$7, whatsapp=$8, direccion=$9, correo=$10, diagnostico=$11, cxc=$12
 WHERE id=$1;`
+
+const sqlUpdPacienteMatricula = `UPDATE medi001.pacientes SET matricula=$2 WHERE id=$1;`
+
+const sqlUpdPacienteStatus = `UPDATE medi001.pacientes SET status=$2 WHERE id=$1;`
 
 const sqlDelPaciente = `DELETE FROM medi001.pacientes WHERE id = $1;`
 

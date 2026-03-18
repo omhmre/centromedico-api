@@ -246,6 +246,8 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/postpaciente", a.PostPaciente())
 	a.Router.HandleFunc("/putpaciente", a.UpdPaciente())
 	a.Router.HandleFunc("/delpaciente", a.DelPaciente())
+	a.Router.HandleFunc("/putpacientematricula", a.UpdPacienteMatricula())
+	a.Router.HandleFunc("/putpacientestatus", a.UpdPacienteStatus())
 
 	// Precios por especialidad del paciente
 	a.Router.HandleFunc("/pacientes/precios", a.HandlePreciosEspecialidad())

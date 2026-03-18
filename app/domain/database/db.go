@@ -121,6 +121,8 @@ type PostDB interface {
 	PostPaciente(i models.PacientesModel) models.Respuesta
 	UpdPaciente(i models.PacientesModel) models.Respuesta
 	DelPaciente(i models.PacientesModel) models.Respuesta
+	UpdPacienteMatricula(i models.PacientesModel) models.Respuesta
+	UpdPacienteStatus(i models.PacientesModel) models.Respuesta
 	UpsertPrecioEspecialidad(p models.PrecioEspecialidad) models.Respuesta
 	DelPrecioEspecialidad(p models.PrecioEspecialidad) models.Respuesta
 	GetPayments(p models.Id) ([]models.Payments, models.Respuesta)
@@ -362,6 +364,54 @@ func (d *DB) UpdPaciente(i models.PacientesModel) models.Respuesta {
 	} else {
 		rp.Status = 201
 		rp.Mensaje = "No se encontro ningun registro con los datos proporcionados!"
+	}
+	return rp
+}
+
+func (d *DB) UpdPacienteMatricula(i models.PacientesModel) models.Respuesta {
+	var rp models.Respuesta
+	resp, err := d.db.Exec(sqlUpdPacienteMatricula, i.Id, i.Matricula)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "No se pudo Actualizar la Matrícula del Paciente. " + err.Error()
+		utils.CreateLog(err.Error())
+		return rp
+	}
+	datos, err1 := resp.RowsAffected()
+	if err1 != nil {
+		rp.Status = 502
+		rp.Mensaje = err1.Error()
+	} else if datos > 0 {
+		rp.Mensaje = "Matrícula del Paciente Actualizada Correctamente"
+		rp.Status = 200
+		utils.CreateLog(rp.Mensaje)
+	} else {
+		rp.Status = 404 // Not Found
+		rp.Mensaje = "No se encontró ningún paciente con el ID proporcionado."
+	}
+	return rp
+}
+
+func (d *DB) UpdPacienteStatus(i models.PacientesModel) models.Respuesta {
+	var rp models.Respuesta
+	resp, err := d.db.Exec(sqlUpdPacienteStatus, i.Id, i.Status)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "No se pudo Actualizar el Status del Paciente. " + err.Error()
+		utils.CreateLog(err.Error())
+		return rp
+	}
+	datos, err1 := resp.RowsAffected()
+	if err1 != nil {
+		rp.Status = 502
+		rp.Mensaje = err1.Error()
+	} else if datos > 0 {
+		rp.Mensaje = "Status del Paciente Actualizado Correctamente"
+		rp.Status = 200
+		utils.CreateLog(rp.Mensaje)
+	} else {
+		rp.Status = 404 // Not Found
+		rp.Mensaje = "No se encontró ningún paciente con el ID proporcionado."
 	}
 	return rp
 }
