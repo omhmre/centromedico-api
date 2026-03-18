@@ -336,12 +336,14 @@ func (d *DB) UpdPaciente(i models.PacientesModel) models.Respuesta {
 		i.Cedula,        // $2
 		i.Nombres,       // $3
 		i.Fenac,         // $4
-		i.Representante, // $5
-		i.Whatsapp,      // $6
-		i.Direccion,     // $7
-		i.Correo,        // $8
-		i.Diagnostico,   // $9
-		i.CXC,           // $10
+		i.Matricula,     // New field, corresponds to $5 in sqlUpdPaciente
+		i.Status,        // New field, corresponds to $6 in sqlUpdPaciente
+		i.Representante, // $7
+		i.Whatsapp,      // $8
+		i.Direccion,     // $9
+		i.Correo,        // $10
+		i.Diagnostico,   // $11
+		i.CXC,           // $12
 	)
 	if err != nil {
 		rp.Status = 500
@@ -380,7 +382,7 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 
 	var newID int
 	// La consulta de inserción devuelve el nuevo ID. Usamos QueryRow para capturarlo.
-	err = tx.QueryRow(sqlPostPaciente, i.Cedula, i.Nombres, i.Fenac, i.Representante, i.Whatsapp,
+	err = tx.QueryRow(sqlPostPaciente, i.Cedula, i.Nombres, i.Fenac, i.Matricula, i.Status, i.Representante, i.Whatsapp,
 		i.Direccion, i.Correo, i.Diagnostico, i.CXC, i.CreatedAt).Scan(&newID)
 
 	if err != nil {
@@ -443,6 +445,8 @@ func (d *DB) GetPacientes() ([]models.PacientesModel, models.Respuesta) {
 			&paciente.Cedula,
 			&paciente.Nombres,
 			&paciente.Fenac,
+			&paciente.Matricula,
+			&paciente.Status,
 			&paciente.Representante,
 			&paciente.Whatsapp,
 			&paciente.Direccion,
