@@ -1,4 +1,4 @@
-package app
+package infrastructure
 
 import (
 	"encoding/json"
@@ -35,9 +35,7 @@ func (a *App) AddCita() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
-			// Notificar a todos los clientes sobre el cambio
-			message, _ := json.Marshal(map[string]string{"event": "CITAS_UPDATED"})
-			a.Hub.Broadcast <- message
+			a.broadcastEvent("CITAS_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
@@ -59,8 +57,7 @@ func (a *App) UpdateCita() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
-			message, _ := json.Marshal(map[string]string{"event": "CITAS_UPDATED"})
-			a.Hub.Broadcast <- message
+			a.broadcastEvent("CITAS_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
@@ -82,8 +79,7 @@ func (a *App) AddDiagnosis() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
-			message, _ := json.Marshal(map[string]string{"event": "CITAS_UPDATED"})
-			a.Hub.Broadcast <- message
+			a.broadcastEvent("CITAS_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
@@ -142,8 +138,7 @@ func (a *App) DelCita() http.HandlerFunc {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 			return
 		}
-		message, _ := json.Marshal(map[string]string{"event": "CITAS_UPDATED"})
-		a.Hub.Broadcast <- message
+		a.broadcastEvent("CITAS_UPDATED", nil)
 		sendResponse(w, r, rp, http.StatusOK)
 	}
 }
@@ -184,6 +179,8 @@ func (a *App) UpdateDoctores() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
+			// Notificar a todos los clientes sobre el cambio
+			a.broadcastEvent("PACIENTES_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
@@ -219,6 +216,8 @@ func (a *App) PostPaciente() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
+			// Notificar a todos los clientes sobre el cambio
+			a.broadcastEvent("PACIENTES_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
@@ -271,6 +270,7 @@ func (a *App) UpdPacienteMatricula() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, rp.Status) // Use status from response
 		} else {
+			a.broadcastEvent("PACIENTES_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
@@ -314,6 +314,7 @@ func (a *App) UpdPacienteStatus() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, rp.Status) // Use status from response
 		} else {
+			a.broadcastEvent("PACIENTES_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
@@ -336,6 +337,8 @@ func (a *App) DelPaciente() http.HandlerFunc {
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
+			// Notificar a todos los clientes sobre el cambio
+			a.broadcastEvent("PACIENTES_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}

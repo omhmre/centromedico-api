@@ -1,11 +1,13 @@
-package app
+package infrastructure
 
 import (
+	"encoding/json"
 	"net/http"
 	"path/filepath"
 
 	"github.com/gorilla/websocket"
 	"omhmre.com/centromedico/app/domain/database"
+	"omhmre.com/centromedico/app/domain/models"
 	"omhmre.com/centromedico/app/domain/utils"
 	ws "omhmre.com/centromedico/app/websocket"
 )
@@ -74,6 +76,18 @@ func (a *App) ServeWs(w http.ResponseWriter, r *http.Request) {
 	// new goroutines.
 	go client.WritePump()
 	go client.ReadPump()
+}
+
+// broadcastEvent marshals an event message and sends it to all clients.
+func (a *App) broadcastEvent(eventName string, data interface{}) {
+	payload := models.WebSocketMessage{Event: eventName, Data: data}
+	message, err := json.Marshal(payload)
+	if err != nil {
+		// Log the error, as failing to marshal this is unexpected.
+		utils.CreateLog("Error marshaling broadcast event: " + err.Error())
+		return
+	}
+	a.Hub.Broadcast <- message
 }
 
 // initializeRoutes registers all the application's routes.

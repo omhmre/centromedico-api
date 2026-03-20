@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 
 	"github.com/robfig/cron"
 	"omhmre.com/centromedico/app/domain/database"
-	app "omhmre.com/centromedico/app/infrastructure"
+	"omhmre.com/centromedico/app/infrastructure"
 	"omhmre.com/centromedico/app/websocket"
 )
 
@@ -19,77 +20,105 @@ func main() {
 	// Configurar un logger estructurado para toda la aplicación
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	// Cargar variables de entorno (usando tu sistema actual)
-	database.FetchVars()
-
-	// Crear el Hub de WebSocket y ejecutarlo en segundo plano
-	hub := websocket.NewHub()
-	go hub.Run()
-
-	// Inicializar aplicación
-	app := app.New(hub)
-
-	// Conexión a la base de datos
-	app.DB = &database.DB{}
-	if err := app.DB.Open(); err != nil {
-		logger.Error("Error al abrir la conexión a la base de datos", "error", err)
+	if err := run(logger); err != nil {
+		logger.Error("La aplicación terminó con un error fatal", "error", err)
 		os.Exit(1)
 	}
+}
+
+func run(logger *slog.Logger) error {
+	// Contexto base para controlar la propagación del apagado
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 1. Cargar variables de entorno
+	database.FetchVars()
+
+	// 2. Inicializar base de datos
+	db := &database.DB{}
+	if err := db.Open(); err != nil {
+		return fmt.Errorf("error al abrir la conexión a la base de datos: %w", err)
+	}
 	defer func() {
-		if err := app.DB.Close(); err != nil {
+		if err := db.Close(); err != nil {
 			logger.Error("Error al cerrar la conexión a la base de datos", "error", err)
 		}
 	}()
 
-	// Configurar cron para backups (usando tus variables HORABACK y MINUTOBACK)
+	// 3. Crear el Hub de WebSocket y ejecutarlo en segundo plano
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	// 4. Inicializar aplicación usando inyección de dependencias
+	application := infrastructure.New(hub)
+	application.DB = db
+
+	// 5. Configurar cron para backups
 	c := cron.New()
-	backupSchedule := database.HORABACK + " " + database.MINUTOBACK + " * * *"
+	// v1.2.0 de robfig/cron requiere 6 campos (Segundos, Minutos, Horas, DiaMes, Mes, DiaSemana)
+	backupSchedule := fmt.Sprintf("0 %s %s * * *", database.MINUTOBACK, database.HORABACK)
+
 	if err := c.AddFunc(backupSchedule, func() {
 		logger.Info("Iniciando backup de base de datos...")
-		if errDb := app.DB.BackupDatabase(); errDb != nil {
+		if errDb := application.DB.BackupDatabase(); errDb != nil {
 			logger.Error("Error en backup de base de datos", "error", errDb)
-		} else {
-			logger.Info("Backup de base de datos completado exitosamente")
+			return
 		}
+		logger.Info("Backup de base de datos completado exitosamente")
 	}); err != nil {
-		logger.Error("Error al programar el backup", "error", err)
+		return fmt.Errorf("error al programar el backup: %w", err)
 	}
 	c.Start()
 	defer c.Stop()
 
-	// Configurar servidor HTTP con graceful shutdown
+	// 6. Configurar servidor HTTP con graceful shutdown y time-outs más robustos contra ataques
 	server := &http.Server{
-		Addr:    ":" + database.PUERTOAPP,
-		Handler: app.WrapWithCORS(app.Router), // Usar el router de la app con CORS
-		// Add a timeout for the server to gracefully shut down
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:              ":" + database.PUERTOAPP,
+		Handler:           application.WrapWithCORS(application.Router),
+		ReadHeaderTimeout: 5 * time.Second,   // CRÍTICO evitar ataques Slowloris
+		ReadTimeout:       15 * time.Second,  // Tiempo máximo para leer la petición
+		WriteTimeout:      15 * time.Second,  // Tiempo máximo para escribir la respuesta
+		IdleTimeout:       120 * time.Second, // Tiempo máximo de Keep-Alive inactivo
 	}
 
-	// Canal para manejar señales de terminación
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	// 7. Manejo Concurrente de Señales y Servidor
+	serverErrors := make(chan error, 1)
 
-	// Iniciar servidor en goroutine
+	// Goroutine que inicia el servidor HTTP
 	go func() {
 		logger.Info("Servidor iniciado", "puerto", database.PUERTOAPP)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("Error al iniciar el servidor", "error", err)
-			os.Exit(1)
-		}
+		serverErrors <- server.ListenAndServe()
 	}()
 
-	// Esperar señal de terminación
-	<-stop
-	logger.Info("Recibida señal de apagado, iniciando cierre...")
+	// Canal para recibir señales de terminación del sistema operativo
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
-	// Contexto con timeout para el cierre
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	// 8. Sincronización de eventos (Select Pattern)
+	select {
+	case err := <-serverErrors:
+		// Se disparó un error (ej. puerto ocupado o cerrado abrúptamente)
+		if err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("servidor falló al escuchar: %w", err)
+		}
 
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("Error durante el cierre del servidor", "error", err)
-	} else {
-		logger.Info("Servidor detenido correctamente")
+	case sig := <-shutdown:
+		// Se capturó una señal del OS
+		logger.Info("Recibida señal de apagado, iniciando cierre...", "señal", sig.String())
+
+		// Le damos un máximo de 15 segundos al server para terminar las peticiones activas
+		shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 15*time.Second)
+		defer shutdownCancel()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			// Si hubo timeout o falló el shutdown ordenado forzamos el cierre
+			if errClose := server.Close(); errClose != nil {
+				return fmt.Errorf("fallo forzando el cierre del servidor: %w", errClose)
+			}
+			return fmt.Errorf("servidor detenido forzosamente por error en el apagado: %w", err)
+		}
 	}
+
+	logger.Info("Servidor detenido correctamente")
+	return nil
 }
