@@ -10,8 +10,12 @@ type DoctoresModel struct {
 	Tlf       string  `json:"tlf"`
 	Correo    string  `json:"correo"`
 	Whatsapp  string  `json:"whatsapp"`
-	Instagram string  `json:"instagram"`
-	Tasapago  float32 `json:"tasapago"`
+	Instagram    string  `json:"instagram"`
+	Tasapago    float32 `json:"tasapago"`
+	DaysOfWeek  []int   `json:"daysOfWeek"`
+	StartTime   string  `json:"startTime"`
+	EndTime     string  `json:"endTime"`
+	SlotDuration int    `json:"slotDuration"`
 }
 
 // Add String method for DoctoresModel
