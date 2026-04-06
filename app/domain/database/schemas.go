@@ -584,9 +584,9 @@ const sqlGetCitas = `SELECT
     c.fecha_operacion
 FROM
     medi001.citas c
-INNER JOIN
+LEFT JOIN
     medi001.doctores d ON c.iddoctor = d.id
-INNER JOIN
+LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 ORDER BY
     c.id;`
@@ -642,9 +642,9 @@ const sqlGetCitaPaciente = `SELECT
     c.fecha_operacion
 FROM
     medi001.citas c
-INNER JOIN
+LEFT JOIN
     medi001.doctores d ON c.iddoctor = d.id
-INNER JOIN
+LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 where c.cedula = $1
 ORDER BY c.id;`
@@ -718,7 +718,7 @@ ON CONFLICT (id_paciente, especialidad) DO UPDATE SET precio = EXCLUDED.precio;`
 const sqlDelPrecioEspecialidad = `DELETE FROM medi001.paciente_precios_especialidad WHERE id_paciente = $1 AND especialidad = $2;`
 
 const sqlGetCitasFecha = `
-	SELECT
+SELECT
     c.id AS cita_id,
     c.iddoctor,
     d.nombres AS especialista,
@@ -728,7 +728,7 @@ const sqlGetCitasFecha = `
     c.motivo,
     c.inicio,
     c.fin,
-	c.diagnostico,
+    c.diagnostico,
     c.status AS cita_status,
     c.color,
     c.montoref,
@@ -742,12 +742,12 @@ const sqlGetCitasFecha = `
     c.fecha_operacion
 FROM
     medi001.citas c
-INNER JOIN
+LEFT JOIN
     medi001.doctores d ON c.iddoctor = d.id
-INNER JOIN
+LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
-WHERE c.inicio BETWEEN $1 AND $2
-	ORDER BY c.inicio`
+WHERE c.inicio >= $1 AND c.fin <= $2
+ORDER BY c.inicio;`
 
 const sqlUpdateUnpaidAppointmentsVESRate = `
 UPDATE medi001.citas
