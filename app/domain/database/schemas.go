@@ -578,7 +578,10 @@ const sqlGetCitas = `SELECT
     c.montobs,
     c.pagado,
     c.saldo,
-    c.group_id
+    c.group_id,
+    c.motivo_cancelacion,
+    c.usuario_operacion,
+    c.fecha_operacion
 FROM
     medi001.citas c
 INNER JOIN
@@ -604,13 +607,16 @@ const sqlUpdCita = `UPDATE medi001.citas SET
         tasa = $10,
         montobs = $11,
         pagado = $12,
-        group_id = $13
+        group_id = $13,
+        motivo_cancelacion = $14,
+        usuario_operacion = $15,
+        fecha_operacion = $16
 		WHERE id = $1`
 
 const sqlUpdDiagnostico = `UPDATE medi001.citas SET diagnostico = $1, status = 'Completada' WHERE id = $2`
 
-const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id) 
-		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $8, $12);`
+const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id, motivo_cancelacion, usuario_operacion, fecha_operacion) 
+		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $8, $12, $13, $14, $15);`
 
 const sqlGetCitaPaciente = `SELECT
     c.id AS cita_id,
@@ -629,8 +635,11 @@ const sqlGetCitaPaciente = `SELECT
     c.tasa,
     c.montobs,
     c.pagado,
-    c.saldo
-    ,c.group_id
+    c.saldo,
+    c.group_id,
+    c.motivo_cancelacion,
+    c.usuario_operacion,
+    c.fecha_operacion
 FROM
     medi001.citas c
 INNER JOIN
@@ -640,18 +649,18 @@ INNER JOIN
 where c.cedula = $1
 ORDER BY c.id;`
 
-const sqlGetPayments = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes
+const sqlGetPayments = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes, usuario_operacion, fecha_operacion
 FROM medi001.payments;`
 
-const sqlGetPaymentsByCita = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes
+const sqlGetPaymentsByCita = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes, usuario_operacion, fecha_operacion
 FROM medi001.payments where appointmentid = $1;`
 
 const sqlPostPayments = `INSERT INTO medi001.payments (appointmentid, paymentmethod, amount, currency, 
-reference, date, status, notes)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8)`
+reference, date, status, notes, usuario_operacion, fecha_operacion)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 const sqlUpdPayments = `UPDATE medi001.payments SET paymentmethod = $2, amount = $3, currency = $4, reference = $5, "date" = $6 , 
-status = $7, notes = $8 WHERE id = $1;`
+status = $7, notes = $8, usuario_operacion = $9, fecha_operacion = $10 WHERE id = $1;`
 
 const sqlDelPayments = `DELETE FROM medi001.payments WHERE id = $1;`
 
@@ -720,14 +729,11 @@ const sqlGetCitasFecha = `
     c.inicio,
     c.fin,
 	c.diagnostico,
-    c.status AS cita_status,
-    c.color,
-    c.montoref,
-    c.tasa,
-    c.montobs,
-    c.pagado,
-    c.saldo
-    ,c.group_id
+    c.saldo,
+    c.group_id,
+    c.motivo_cancelacion,
+    c.usuario_operacion,
+    c.fecha_operacion
 FROM
     medi001.citas c
 INNER JOIN

@@ -24,8 +24,11 @@ type CitaModel struct {
 	Pagado       float64   `json:"pagado"`
 	Saldo        float64   `json:"saldo"`
 	GroupID      *string   `json:"group_id,omitempty"`
-	Weeks        int       `json:"weeks"`
-	UpdateSeries bool      `json:"update_series"`
+	Weeks             int        `json:"weeks"`
+	UpdateSeries      bool       `json:"update_series"`
+	MotivoCancelacion string     `json:"motivo_cancelacion"`
+	UsuarioOperacion  string     `json:"usuario_operacion"`
+	FechaOperacion    *time.Time `json:"fecha_operacion,omitempty"`
 }
 
 // Add String method for CitaModel

@@ -50,15 +50,17 @@ type RespDetPagos struct {
 }
 
 type Payments struct {
-	Id            int64     `json:"id"`
-	Appointmentid int64     `json:"appointmentid"`
-	Paymentmethod string    `json:"paymentmethod"`
-	Amount        float64   `json:"amount"`
-	Currency      string    `json:"currency"`
-	Reference     string    `json:"reference"`
-	Date          time.Time `json:"date"`
-	Status        string    `json:"status"`
-	Notes         string    `json:"notes"`
+	Id               int64      `json:"id"`
+	Appointmentid    int64      `json:"appointmentid"`
+	Paymentmethod    string     `json:"paymentmethod"`
+	Amount           float64    `json:"amount"`
+	Currency         string     `json:"currency"`
+	Reference        string     `json:"reference"`
+	Date             time.Time  `json:"date"`
+	Status           string     `json:"status"`
+	Notes            string     `json:"notes"`
+	UsuarioOperacion string     `json:"usuario_operacion"`
+	FechaOperacion   *time.Time `json:"fecha_operacion,omitempty"`
 }
 
 type RelPagos struct {

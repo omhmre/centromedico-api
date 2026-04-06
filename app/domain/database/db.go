@@ -240,7 +240,7 @@ func (d *DB) PostPayments(p []models.Payments) models.Respuesta {
 
 	for _, e := range p {
 		_, err := d.db.Exec(sqlPostPayments, e.Appointmentid, e.Paymentmethod, e.Amount, e.Currency, e.Reference,
-			e.Date, e.Status, e.Notes)
+			e.Date, e.Status, e.Notes, e.UsuarioOperacion, e.FechaOperacion)
 		if err != nil {
 			rp.Status = 501
 			rp.Mensaje = "No se pudo Agregar la Informacion del Pago. " + err.Error()
@@ -298,6 +298,8 @@ func (d *DB) GetPayments(p models.Id) ([]models.Payments, models.Respuesta) {
 				&payment.Date,
 				&payment.Status,
 				&payment.Notes,
+				&payment.UsuarioOperacion,
+				&payment.FechaOperacion,
 			)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
@@ -3854,7 +3856,8 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 			nuevaCita.GroupID = groupID
 
 			_, err := tx.Exec(sqlPostCita, nuevaCita.IdDoctor, nuevaCita.Cedula, nuevaCita.Motivo, nuevaCita.Inicio, nuevaCita.Fin, nuevaCita.Status, nuevaCita.Color,
-				nuevaCita.Montoref, nuevaCita.Tasa, nuevaCita.Montobs, nuevaCita.Pagado, nuevaCita.GroupID)
+				nuevaCita.Montoref, nuevaCita.Tasa, nuevaCita.Montobs, nuevaCita.Pagado, nuevaCita.GroupID, nuevaCita.MotivoCancelacion, 
+				nuevaCita.UsuarioOperacion, nuevaCita.FechaOperacion)
 			if err != nil {
 				tx.Rollback()
 				rp.Status = 500
@@ -3902,13 +3905,15 @@ func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 			UPDATE medi001.citas 
 			SET id_doctor=$1, cedula=$2, motivo=$3, status=$4, color=$5, montoref=$6, tasa=$7, montobs=$8, pagado=$9, 
 				inicio = inicio + $10::interval, 
-				fin = fin + $10::interval 
+				fin = fin + $10::interval,
+				motivo_cancelacion = $12, usuario_operacion = $13, fecha_operacion = $14
 			WHERE group_id=$11`
 
 		res, err := d.db.Exec(sqlUpdCitaSeries,
 			cita.IdDoctor, cita.Cedula, cita.Motivo, cita.Status,
 			cita.Color, cita.Montoref, cita.Tasa, cita.Montobs, cita.Pagado,
-			intervalStr, cita.GroupID)
+			intervalStr, cita.GroupID, cita.MotivoCancelacion, 
+			cita.UsuarioOperacion, cita.FechaOperacion)
 
 		if err != nil {
 			rp.Status = 500
@@ -3924,7 +3929,8 @@ func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 
 	// Comportamiento original: Actualizar solo la cita individual
 	_, err := d.db.Exec(sqlUpdCita, cita.Id, cita.IdDoctor, cita.Cedula, cita.Motivo, cita.Inicio, cita.Fin, cita.Status,
-		cita.Color, cita.Montoref, cita.Tasa, cita.Montobs, cita.Pagado, cita.GroupID)
+		cita.Color, cita.Montoref, cita.Tasa, cita.Montobs, cita.Pagado, cita.GroupID, cita.MotivoCancelacion, 
+		cita.UsuarioOperacion, cita.FechaOperacion)
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "Error al actualizar cita: " + err.Error()
@@ -3987,6 +3993,9 @@ func (d *DB) GetCitas() ([]models.CitaModel, models.Respuesta) {
 			&cita.Pagado,
 			&cita.Saldo,
 			&cita.GroupID,
+			&cita.MotivoCancelacion,
+			&cita.UsuarioOperacion,
+			&cita.FechaOperacion,
 		)
 		if err != nil {
 			rp.Status = 500
@@ -4185,6 +4194,9 @@ func (d *DB) GetCitasPaciente(p models.PacientesModel) ([]models.CitaModel, mode
 			&cita.Pagado,
 			&cita.Saldo,
 			&cita.GroupID,
+			&cita.MotivoCancelacion,
+			&cita.UsuarioOperacion,
+			&cita.FechaOperacion,
 		)
 		if err != nil {
 			rp.Status = 500
@@ -4419,6 +4431,9 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 			&cita.Pagado,
 			&cita.Saldo,
 			&cita.GroupID,
+			&cita.MotivoCancelacion,
+			&cita.UsuarioOperacion,
+			&cita.FechaOperacion,
 		)
 		if err != nil {
 			rp.Status = 500
