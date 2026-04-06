@@ -87,42 +87,36 @@ func (a *App) AddDiagnosis() http.HandlerFunc {
 
 func (a *App) GetCitas() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var rp models.Respuesta
-		datos, err := a.DB.GetCitas()
-		if err.Status > 200 {
-			rp.Status = err.Status
-			rp.Mensaje = "Error Cargando Citas"
-			utils.CreateLog("Error al obteniendo las citas: " + err.Mensaje)
-		}
-		rp.Status = 10
-		rp.Mensaje = "Citas listadas correctamente!"
-
-		data := json.NewEncoder(w).Encode(datos)
-		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+		datos, resp := a.DB.GetCitas()
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, http.StatusInternalServerError)
 			return
+		}
+
+		errEncode := json.NewEncoder(w).Encode(datos)
+		if errEncode != nil {
+			fmt.Printf("Error al codificar citas en JSON: %v\n", errEncode)
 		}
 	}
 }
 
 func (a *App) GetCitasPaciente() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var rp models.Respuesta
 		var paciente models.PacientesModel
-		json.NewDecoder(r.Body).Decode(&paciente)
-		datos, err := a.DB.GetCitasPaciente(paciente)
-		if err.Status > 200 {
-			rp.Status = err.Status
-			rp.Mensaje = "Error Cargando Citas"
-			utils.CreateLog("Error al obteniendo las citas: " + err.Mensaje)
+		err := json.NewDecoder(r.Body).Decode(&paciente)
+		if err != nil {
+			utils.CreateLog("Unable to decode the patient request body: " + err.Error())
 		}
-		rp.Status = 10
-		rp.Mensaje = "Citas listadas correctamente!"
 
-		data := json.NewEncoder(w).Encode(datos)
-		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+		datos, resp := a.DB.GetCitasPaciente(paciente)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, http.StatusInternalServerError)
 			return
+		}
+
+		errEncode := json.NewEncoder(w).Encode(datos)
+		if errEncode != nil {
+			fmt.Printf("Error al codificar citas del paciente en JSON: %v\n", errEncode)
 		}
 	}
 }
@@ -389,26 +383,21 @@ func (a *App) DelDoctor() http.HandlerFunc {
 
 func (a *App) GetPayments() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var rp models.Respuesta
 		var id models.Id
 		err := json.NewDecoder(r.Body).Decode(&id)
 		if err != nil {
-			utils.CreateLog("Unable to decode the doctor request body.  " + err.Error())
+			utils.CreateLog("Unable to decode the payments request body: " + err.Error())
 		}
 
-		datos, err2 := a.DB.GetPayments(id)
-		if err2.Status > 200 {
-			rp.Status = err2.Status
-			rp.Mensaje = "Error Cargando Pagos"
-			utils.CreateLog("Error al obteniendo los pagos: " + err2.Mensaje)
-		}
-		rp.Status = 10
-		rp.Mensaje = "Pagos listados correctamente!"
-
-		data := json.NewEncoder(w).Encode(datos)
-		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+		datos, resp := a.DB.GetPayments(id)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, http.StatusInternalServerError)
 			return
+		}
+
+		errEncode := json.NewEncoder(w).Encode(datos)
+		if errEncode != nil {
+			fmt.Printf("Error al codificar pagos en JSON: %v\n", errEncode)
 		}
 	}
 }

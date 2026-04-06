@@ -895,7 +895,7 @@ func (d *DB) SendMail(f models.MailSend) error {
 
 	// 6. Enviar el correo.
 	if err := dialer.DialAndSend(m); err != nil {
-		msg := fmt.Sprintf("SendMail: Error al enviar correo a través de %s:%s. Error: %v", config.Smtp, config.Puerto, err)
+		msg := fmt.Sprintf("SendMail: Error al enviar correo a través de %s:%d. Error: %v", config.Smtp, config.Puerto, err)
 		utils.CreateLog(msg)
 		return fmt.Errorf("error al enviar correo: %w", err)
 	}

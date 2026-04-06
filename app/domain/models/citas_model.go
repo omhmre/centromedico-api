@@ -26,8 +26,8 @@ type CitaModel struct {
 	GroupID      *string   `json:"group_id,omitempty"`
 	Weeks             int        `json:"weeks"`
 	UpdateSeries      bool       `json:"update_series"`
-	MotivoCancelacion string     `json:"motivo_cancelacion"`
-	UsuarioOperacion  string     `json:"usuario_operacion"`
+	MotivoCancelacion *string    `json:"motivo_cancelacion"`
+	UsuarioOperacion  *string    `json:"usuario_operacion"`
 	FechaOperacion    *time.Time `json:"fecha_operacion,omitempty"`
 }
 
