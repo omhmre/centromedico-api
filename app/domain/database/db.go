@@ -3903,7 +3903,7 @@ func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 		// 3. Actualizar toda la serie: aplica el desplazamiento a las fechas y setea los nuevos valores
 		const sqlUpdCitaSeries = `
 			UPDATE medi001.citas 
-			SET id_doctor=$1, cedula=$2, motivo=$3, status=$4, color=$5, montoref=$6, tasa=$7, montobs=$8, pagado=$9, 
+			SET iddoctor=$1, cedula=$2, motivo=$3, status=$4, color=$5, montoref=$6, tasa=$7, montobs=$8, pagado=$9, 
 				inicio = inicio + $10::interval, 
 				fin = fin + $10::interval,
 				motivo_cancelacion = $12, usuario_operacion = $13, fecha_operacion = $14
