@@ -564,7 +564,7 @@ const sqlGetCitas = `SELECT
     c.id,
     c.id_doctor AS iddoctor,
     d.nombres AS especialista,
-    d.especialidad,
+    d.espec AS especialidad,
     c.cedula,
     p.nombres AS paciente,
     c.motivo,
@@ -585,7 +585,7 @@ const sqlGetCitas = `SELECT
 FROM
     medi001.citas c
 LEFT JOIN
-    medi001.especialistas d ON c.id_doctor = d.id
+    medi001.doctores d ON c.id_doctor = d.id
 LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 ORDER BY
@@ -622,7 +622,7 @@ const sqlGetCitaPaciente = `SELECT
     c.id,
     c.id_doctor AS iddoctor,
     d.nombres AS especialista,
-    d.especialidad,
+    d.espec AS especialidad,
     c.cedula,
     p.nombres AS paciente,
     c.motivo,
@@ -643,7 +643,7 @@ const sqlGetCitaPaciente = `SELECT
 FROM
     medi001.citas c
 LEFT JOIN
-    medi001.especialistas d ON c.id_doctor = d.id
+    medi001.doctores d ON c.id_doctor = d.id
 LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 where c.cedula = $1
@@ -720,9 +720,9 @@ const sqlDelPrecioEspecialidad = `DELETE FROM medi001.paciente_precios_especiali
 const sqlGetCitasFecha = `
 SELECT
     c.id,
-    c.id_doctor,
+    c.id_doctor AS iddoctor,
     d.nombres AS especialista,
-    d.especialidad,
+    d.espec AS especialidad,
     c.cedula,
     p.nombres AS paciente,
     c.motivo,
@@ -743,7 +743,7 @@ SELECT
 FROM
     medi001.citas c
 LEFT JOIN
-    medi001.especialistas d ON c.id_doctor = d.id
+    medi001.doctores d ON c.id_doctor = d.id
 LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 WHERE c.inicio >= $1 AND c.fin <= $2
