@@ -561,23 +561,23 @@ VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7,
 const sqlDelDoctor = `DELETE FROM medi001.doctores WHERE id = $1;`
 
 const sqlGetCitas = `SELECT
-    c.id AS cita_id,
-    c.iddoctor,
+    c.id,
+    c.id_doctor AS iddoctor,
     d.nombres AS especialista,
-    d.espec AS especialidad,
-    c.cedula AS paciente_cedula,
+    d.especialidad,
+    c.cedula,
     p.nombres AS paciente,
     c.motivo,
     c.inicio,
     c.fin,
     c.diagnostico,
-    c.status AS cita_status,
+    c.status,
     c.color,
     c.montoref,
     c.tasa,
     c.montobs,
     c.pagado,
-    c.saldo,
+    (c.montoref - c.pagado) AS saldo,
     c.group_id,
     c.motivo_cancelacion,
     c.usuario_operacion,
@@ -585,7 +585,7 @@ const sqlGetCitas = `SELECT
 FROM
     medi001.citas c
 LEFT JOIN
-    medi001.doctores d ON c.iddoctor = d.id
+    medi001.especialistas d ON c.id_doctor = d.id
 LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 ORDER BY
@@ -596,7 +596,7 @@ const sqlDelCita = `DELETE FROM medi001.citas WHERE id = $1;`
 const sqlDelCitaAll = `DELETE FROM medi001.citas WHERE group_id = (SELECT group_id FROM medi001.citas WHERE id = $1) AND inicio >= (SELECT inicio FROM medi001.citas WHERE id = $1);`
 
 const sqlUpdCita = `UPDATE medi001.citas SET 
-		iddoctor = $2, 
+		id_doctor = $2, 
 		cedula = $3, 
 		motivo = $4, 
 		inicio = $5, 
@@ -615,27 +615,27 @@ const sqlUpdCita = `UPDATE medi001.citas SET
 
 const sqlUpdDiagnostico = `UPDATE medi001.citas SET diagnostico = $1, status = 'Completada' WHERE id = $2`
 
-const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id, motivo_cancelacion, usuario_operacion, fecha_operacion) 
-		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $8, $12, $13, $14, $15);`
+const sqlPostCita = `INSERT INTO medi001.citas (id, id_doctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id, motivo_cancelacion, usuario_operacion, fecha_operacion) 
+		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $8 - $11, $12, $13, $14, $15);`
 
 const sqlGetCitaPaciente = `SELECT
-    c.id AS cita_id,
-    c.iddoctor,
+    c.id,
+    c.id_doctor AS iddoctor,
     d.nombres AS especialista,
-    d.espec AS especialidad,
-    c.cedula AS paciente_cedula,
+    d.especialidad,
+    c.cedula,
     p.nombres AS paciente,
     c.motivo,
     c.inicio,
     c.fin,
     c.diagnostico,
-    c.status AS cita_status,
+    c.status,
     c.color,
     c.montoref,
     c.tasa,
     c.montobs,
     c.pagado,
-    c.saldo,
+    (c.montoref - c.pagado) AS saldo,
     c.group_id,
     c.motivo_cancelacion,
     c.usuario_operacion,
@@ -643,7 +643,7 @@ const sqlGetCitaPaciente = `SELECT
 FROM
     medi001.citas c
 LEFT JOIN
-    medi001.doctores d ON c.iddoctor = d.id
+    medi001.especialistas d ON c.id_doctor = d.id
 LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 where c.cedula = $1
@@ -719,23 +719,23 @@ const sqlDelPrecioEspecialidad = `DELETE FROM medi001.paciente_precios_especiali
 
 const sqlGetCitasFecha = `
 SELECT
-    c.id AS cita_id,
-    c.iddoctor,
+    c.id,
+    c.id_doctor,
     d.nombres AS especialista,
-    d.espec AS especialidad,
-    c.cedula AS paciente_cedula,
+    d.especialidad,
+    c.cedula,
     p.nombres AS paciente,
     c.motivo,
     c.inicio,
     c.fin,
     c.diagnostico,
-    c.status AS cita_status,
+    c.status,
     c.color,
     c.montoref,
     c.tasa,
     c.montobs,
     c.pagado,
-    c.saldo,
+    (c.montoref - c.pagado) AS saldo,
     c.group_id,
     c.motivo_cancelacion,
     c.usuario_operacion,
@@ -743,7 +743,7 @@ SELECT
 FROM
     medi001.citas c
 LEFT JOIN
-    medi001.doctores d ON c.iddoctor = d.id
+    medi001.especialistas d ON c.id_doctor = d.id
 LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 WHERE c.inicio >= $1 AND c.fin <= $2
