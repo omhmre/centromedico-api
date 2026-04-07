@@ -530,7 +530,7 @@ const sqlDelEmailConfig = `DELETE FROM empre001.emailconfig WHERE id = $1;`
 const sqlDelPresupuesto = `DELETE FROM empre001.presupuestos `
 
 const sqlGetDoctores = `select d.id, d.nombres, d.espec, d.dir, d.tlf, d.correo, d.whatsapp, d.instagram, 
-d.tasapago, d.monto_cita, d.days_of_week, d.start_time, d.end_time, d.slot_duration from medi001.doctores d order by d.nombres;`
+d.tasapago, d.days_of_week, d.start_time, d.end_time, d.slot_duration, d.monto_cita from medi001.doctores d order by d.nombres;`
 
 const sqlUpdDoctores = `update medi001.doctores set 
 nombres = $2, espec = $3, dir = $4, tlf = $5, correo = $6, whatsapp = $7, instagram = $8, tasapago = $9,
