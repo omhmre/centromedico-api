@@ -922,7 +922,7 @@ func (d *DB) SendMailAPI(f models.MailSend) error {
 
 	// Estructura para la petición a Resend
 	payload := map[string]interface{}{
-		"from":    "Admin Centro Medico <onboarding@resend.dev>", // Cambiar por dominio verificado en Resend
+		"from":    RESEND_FROM,
 		"to":      []string{f.To},
 		"subject": f.Subject,
 		"html":    f.Body, // Resend prefiere HTML, pero enviamos el body
