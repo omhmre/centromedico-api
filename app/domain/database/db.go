@@ -3974,17 +3974,20 @@ func (d *DB) GetCitas() ([]models.CitaModel, models.Respuesta) {
 
 	for rows.Next() {
 		var cita models.CitaModel
+		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion sql.NullString
+		var fechaOperacion sql.NullTime
+
 		err := rows.Scan(
 			&cita.Id,
 			&cita.IdDoctor,
-			&cita.Especialista,
-			&cita.Especialidad,
+			&especialista,
+			&especialidad,
 			&cita.Cedula,
-			&cita.Paciente,
+			&paciente,
 			&cita.Motivo,
 			&cita.Inicio,
 			&cita.Fin,
-			&cita.Diagnostico,
+			&diagnostico,
 			&cita.Status,
 			&cita.Color,
 			&cita.Montoref,
@@ -3992,16 +3995,42 @@ func (d *DB) GetCitas() ([]models.CitaModel, models.Respuesta) {
 			&cita.Montobs,
 			&cita.Pagado,
 			&cita.Saldo,
-			&cita.GroupID,
-			&cita.MotivoCancelacion,
-			&cita.UsuarioOperacion,
-			&cita.FechaOperacion,
+			&groupID,
+			&motivoCancelacion,
+			&usuarioOperacion,
+			&fechaOperacion,
 		)
 		if err != nil {
 			rp.Status = 500
 			rp.Mensaje = "Error al escanear cita: " + err.Error()
 			return nil, rp
 		}
+
+		if especialista.Valid {
+			cita.Especialista = especialista.String
+		}
+		if especialidad.Valid {
+			cita.Especialidad = especialidad.String
+		}
+		if paciente.Valid {
+			cita.Paciente = paciente.String
+		}
+		if diagnostico.Valid {
+			cita.Diagnostico = &diagnostico.String
+		}
+		if groupID.Valid {
+			cita.GroupID = &groupID.String
+		}
+		if motivoCancelacion.Valid {
+			cita.MotivoCancelacion = &motivoCancelacion.String
+		}
+		if usuarioOperacion.Valid {
+			cita.UsuarioOperacion = &usuarioOperacion.String
+		}
+		if fechaOperacion.Valid {
+			cita.FechaOperacion = &fechaOperacion.Time
+		}
+
 		citas = append(citas, cita)
 	}
 
@@ -4175,17 +4204,20 @@ func (d *DB) GetCitasPaciente(p models.PacientesModel) ([]models.CitaModel, mode
 
 	for rows.Next() {
 		var cita models.CitaModel
+		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion sql.NullString
+		var fechaOperacion sql.NullTime
+
 		err := rows.Scan(
 			&cita.Id,
 			&cita.IdDoctor,
-			&cita.Especialista,
-			&cita.Especialidad,
+			&especialista,
+			&especialidad,
 			&cita.Cedula,
-			&cita.Paciente,
+			&paciente,
 			&cita.Motivo,
 			&cita.Inicio,
 			&cita.Fin,
-			&cita.Diagnostico,
+			&diagnostico,
 			&cita.Status,
 			&cita.Color,
 			&cita.Montoref,
@@ -4193,16 +4225,42 @@ func (d *DB) GetCitasPaciente(p models.PacientesModel) ([]models.CitaModel, mode
 			&cita.Montobs,
 			&cita.Pagado,
 			&cita.Saldo,
-			&cita.GroupID,
-			&cita.MotivoCancelacion,
-			&cita.UsuarioOperacion,
-			&cita.FechaOperacion,
+			&groupID,
+			&motivoCancelacion,
+			&usuarioOperacion,
+			&fechaOperacion,
 		)
 		if err != nil {
 			rp.Status = 500
 			rp.Mensaje = "Error al escanear cita: " + err.Error()
 			return nil, rp
 		}
+
+		if especialista.Valid {
+			cita.Especialista = especialista.String
+		}
+		if especialidad.Valid {
+			cita.Especialidad = especialidad.String
+		}
+		if paciente.Valid {
+			cita.Paciente = paciente.String
+		}
+		if diagnostico.Valid {
+			cita.Diagnostico = &diagnostico.String
+		}
+		if groupID.Valid {
+			cita.GroupID = &groupID.String
+		}
+		if motivoCancelacion.Valid {
+			cita.MotivoCancelacion = &motivoCancelacion.String
+		}
+		if usuarioOperacion.Valid {
+			cita.UsuarioOperacion = &usuarioOperacion.String
+		}
+		if fechaOperacion.Valid {
+			cita.FechaOperacion = &fechaOperacion.Time
+		}
+
 		citas = append(citas, cita)
 	}
 
@@ -4412,17 +4470,20 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 
 	for rows.Next() {
 		var cita models.CitaModel
+		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion sql.NullString
+		var fechaOperacion sql.NullTime
+
 		err := rows.Scan(
 			&cita.Id,
 			&cita.IdDoctor,
-			&cita.Especialista,
-			&cita.Especialidad,
+			&especialista,
+			&especialidad,
 			&cita.Cedula,
-			&cita.Paciente,
+			&paciente,
 			&cita.Motivo,
 			&cita.Inicio,
 			&cita.Fin,
-			&cita.Diagnostico,
+			&diagnostico,
 			&cita.Status,
 			&cita.Color,
 			&cita.Montoref,
@@ -4430,16 +4491,42 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 			&cita.Montobs,
 			&cita.Pagado,
 			&cita.Saldo,
-			&cita.GroupID,
-			&cita.MotivoCancelacion,
-			&cita.UsuarioOperacion,
-			&cita.FechaOperacion,
+			&groupID,
+			&motivoCancelacion,
+			&usuarioOperacion,
+			&fechaOperacion,
 		)
 		if err != nil {
 			rp.Status = 500
 			rp.Mensaje = "Error al escanear cita: " + err.Error()
 			return nil, rp
 		}
+
+		if especialista.Valid {
+			cita.Especialista = especialista.String
+		}
+		if especialidad.Valid {
+			cita.Especialidad = especialidad.String
+		}
+		if paciente.Valid {
+			cita.Paciente = paciente.String
+		}
+		if diagnostico.Valid {
+			cita.Diagnostico = &diagnostico.String
+		}
+		if groupID.Valid {
+			cita.GroupID = &groupID.String
+		}
+		if motivoCancelacion.Valid {
+			cita.MotivoCancelacion = &motivoCancelacion.String
+		}
+		if usuarioOperacion.Valid {
+			cita.UsuarioOperacion = &usuarioOperacion.String
+		}
+		if fechaOperacion.Valid {
+			cita.FechaOperacion = &fechaOperacion.Time
+		}
+
 		citas = append(citas, cita)
 	}
 

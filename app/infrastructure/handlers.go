@@ -45,7 +45,6 @@ func (a *App) HealthHandler() http.HandlerFunc {
 		// ...
 
 		// Respuesta exitosa
-		utils.CreateLog("Health Check OK")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":    "UP",
 			"services":  []string{"database"},
