@@ -27,6 +27,7 @@ var (
 	HORABACK                   string
 	MINUTOBACK                 string
 	EMAIL_INSECURE_SKIP_VERIFY bool
+	RESEND_API_KEY             string
 )
 
 // Constantes para valores por defecto
@@ -57,6 +58,7 @@ func FetchVars() {
 	DB_SSL_MODE = getEnv("SSL_MODE", "disable") // Por defecto 'disable' para desarrollo local
 	SECRET_KEY = os.Getenv("SECRET_KEY")
 	TIEMPO = os.Getenv("TIEMPO")
+	RESEND_API_KEY = os.Getenv("RESEND_API_KEY")
 
 	// Nuevo: Controla la verificación del certificado TLS para el envío de correos.
 	// Por defecto es 'true' para no romper la configuración existente, pero se recomienda 'false' para producción.

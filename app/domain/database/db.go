@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"database/sql"
@@ -843,6 +844,11 @@ func (d *DB) DelEmailConfig(i models.Id) models.Respuesta {
 }
 
 func (d *DB) SendMail(f models.MailSend) error {
+	// Si RESEND_API_KEY está configurado, usamos la API de Resend (evita bloqueo de puertos en Render Free Tier)
+	if RESEND_API_KEY != "" {
+		return d.SendMailAPI(f)
+	}
+
 	// 1. Obtener la configuración de email de forma segura.
 	config, resp := d.GetEmailConfig()
 	if resp.Status >= 400 {
@@ -906,6 +912,52 @@ func (d *DB) SendMail(f models.MailSend) error {
 	}
 
 	utils.CreateLog(fmt.Sprintf("SendMail: Correo enviado exitosamente a %s", f.To))
+	return nil
+}
+
+// SendMailAPI envía correos usando la API HTTP de Resend.com
+// Esto es ideal para evadir el bloqueo de puertos SMTP (25, 465, 587) en Render.com Free Tier.
+func (d *DB) SendMailAPI(f models.MailSend) error {
+	url := "https://api.resend.com/emails"
+
+	// Estructura para la petición a Resend
+	payload := map[string]interface{}{
+		"from":    "Admin Centro Medico <onboarding@resend.dev>", // Cambiar por dominio verificado en Resend
+		"to":      []string{f.To},
+		"subject": f.Subject,
+		"html":    f.Body, // Resend prefiere HTML, pero enviamos el body
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("error al serializar payload de Resend: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("error al crear petición a Resend: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+RESEND_API_KEY)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		utils.CreateLog(fmt.Sprintf("SendMailAPI: Error de conexión con Resend: %v", err))
+		return fmt.Errorf("error al conectar con la API de Resend: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		var errorResp map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&errorResp)
+		msg := fmt.Sprintf("SendMailAPI: Resend devolvió error %d: %v", resp.StatusCode, errorResp)
+		utils.CreateLog(msg)
+		return fmt.Errorf("error de la API de Resend: %d", resp.StatusCode)
+	}
+
+	utils.CreateLog(fmt.Sprintf("SendMailAPI: Correo enviado exitosamente a %s (ID Resend)", f.To))
 	return nil
 }
 
