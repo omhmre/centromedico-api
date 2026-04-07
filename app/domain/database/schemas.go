@@ -616,7 +616,7 @@ const sqlUpdCita = `UPDATE medi001.citas SET
 const sqlUpdDiagnostico = `UPDATE medi001.citas SET diagnostico = $1, status = 'Completada' WHERE id = $2`
 
 const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id, motivo_cancelacion, usuario_operacion, fecha_operacion) 
-		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, ($8::float8 - $11::float8), $12, $13, $14, $15);`
+		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, $12, $13, $14, $15);`
 
 const sqlGetCitaPaciente = `SELECT
     c.id,
