@@ -93,16 +93,28 @@ func (d *DB) AddUsuario(i models.NuevoUsuario) models.Respuesta {
 		rp.Mensaje = err1.Error()
 	} else if datos > 0 {
 		// Enviar correo con la contraseña ORIGINAL (sin hashear)
-		subject := "Departamento de Seguridad - Nuevo Usuario Creado"
-		emailBody := fmt.Sprintf("Hola %s,\n\nSe ha creado un nuevo usuario para usted en Admin.\n\nSus credenciales son:\nCódigo de Usuario: %s\nContraseña: %s\n\nPor favor, inicie sesión y cambie su contraseña lo antes posible.\n\nSaludos,\nEl equipo de Admin", i.Nombre, i.Codigo, originalClave) // Usar originalClave aquí
-		mailToSend := models.MailSend{
-			To:      i.Correo,
-			Subject: subject,
-			Body:    emailBody,
+		if i.Correo != "" {
+			subject := "Departamento de Seguridad - Nuevo Usuario Creado"
+			emailBody := fmt.Sprintf("Hola %s,\n\nSe ha creado un nuevo usuario para usted en Admin.\n\nSus credenciales son:\nCódigo de Usuario: %s\nContraseña: %s\n\nPor favor, inicie sesión y cambie su contraseña lo antes posible.\n\nSaludos,\nEl equipo de Admin", i.Nombre, i.Codigo, originalClave)
+			mailToSend := models.MailSend{
+				To:      i.Correo,
+				Subject: subject,
+				Body:    emailBody,
+			}
+			errMail := d.SendMail(mailToSend)
+			if errMail != nil {
+				rp.Status = 200 // Se creó el usuario, pero el correo falló
+				rp.Mensaje = fmt.Sprintf("Usuario Agregado Correctamente, pero falló el envío del correo: %v", errMail)
+				utils.CreateLog("AddUsuario Error: " + rp.Mensaje)
+			} else {
+				rp.Status = 200
+				rp.Mensaje = "Usuario Agregado Correctamente y correo enviado."
+			}
+		} else {
+			rp.Status = 200
+			rp.Mensaje = "Usuario Agregado Correctamente (Sin correo registrado)."
+			utils.CreateLog("AddUsuario: Usuario creado sin correo para " + i.Codigo)
 		}
-		d.SendMail(mailToSend)
-		rp.Status = 200
-		rp.Mensaje = strconv.FormatInt(datos, 10) + " usuario Agregado Correctamente"
 	} else {
 		rp.Status = 201
 		rp.Mensaje = "No se encontro ningun registro con los datos proporcionados!"
@@ -272,17 +284,17 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 				Subject: subject,
 				Body:    emailBody,
 			}
-			errMail := d.SendMail(mailToSend) // Now SendMail returns an error
+			errMail := d.SendMail(mailToSend)
 			if errMail != nil {
 				rp.Status = 500
-				rp.Mensaje = "Clave actualizada en DB, pero falló el envío del correo: " + errMail.Error()
-				utils.CreateLog(rp.Mensaje)
+				rp.Mensaje = "Clave actualizada en base de datos, pero falló el envío del correo: " + errMail.Error()
+				utils.CreateLog("ChangePassword Error: " + rp.Mensaje)
 				return rp
 			}
 
 			rp.Status = 200
-			rp.Mensaje = "Clave actualizada. Se ha enviado un correo con la nueva contraseña."
-			utils.CreateLog(fmt.Sprintf("ChangePassword: Password reset email sent successfully for user %s.", u.Codigo))
+			rp.Mensaje = "Clave actualizada exitosamente. Se ha enviado un correo con la nueva contraseña."
+			utils.CreateLog(fmt.Sprintf("ChangePassword: Password reset email sent successfully for user %s to %s.", u.Codigo, correo))
 			return rp
 		}
 

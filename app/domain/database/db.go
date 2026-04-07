@@ -876,34 +876,36 @@ func (d *DB) SendMail(f models.MailSend) error {
 	}
 
 	// 4. Configurar el Dialer de SMTP de forma robusta.
-	// Convertir puerto de string a int, con validación.
-	// port, err := strconv.Atoi(config.Puerto)
-	// if err != nil {
-	// 	msg := fmt.Sprintf("SendMail: El puerto en la configuración de email no es un número válido: '%s'", config.Puerto)
-	// 	utils.CreateLog(msg)
-	// 	return fmt.Errorf(msg)
-	// }
-
 	dialer := mail.NewDialer(config.Smtp, config.Puerto, config.Usuario, config.Clave)
 
-	// 5. Configurar TLS/SSL de forma segura.
-	// La librería `gopkg.in/mail.v2` maneja STARTTLS automáticamente en el puerto 587
-	// si `dialer.SSL` es `false`. Si el puerto es 465, `dialer.SSL` debe ser `true`.
-	// La variable `config.Tls` (booleana) de la DB controla esto.
-	dialer.SSL = config.Tls
+	// 5. Configurar TLS/SSL de forma inteligente.
+	// El puerto 465 es típicamente para SSL/TLS implícito (SMTPS).
+	// El puerto 587 es para STARTTLS explícito.
+	// Priorizamos el puerto si es estándar, de lo contrario usamos el flag de la DB.
+	if config.Puerto == 465 {
+		dialer.SSL = true
+	} else if config.Puerto == 587 {
+		dialer.SSL = false // STARTTLS es manejado automáticamente por la librería
+	} else {
+		dialer.SSL = config.Tls
+	}
 
-	// `InsecureSkipVerify` es un riesgo de seguridad. Su valor se controla ahora
-	// desde una variable de entorno `EMAIL_INSECURE_SKIP_VERIFY`.
-	dialer.TLSConfig = &tls.Config{InsecureSkipVerify: EMAIL_INSECURE_SKIP_VERIFY}
+	// Configuración de TLS con InsecureSkipVerify dinámica.
+	dialer.TLSConfig = &tls.Config{
+		ServerName:         config.Smtp,
+		InsecureSkipVerify: EMAIL_INSECURE_SKIP_VERIFY,
+	}
+
+	utils.CreateLog(fmt.Sprintf("SendMail: Intentando enviar correo a %s vía %s:%d (SSL: %v, Insecure: %v)", f.To, config.Smtp, config.Puerto, dialer.SSL, EMAIL_INSECURE_SKIP_VERIFY))
 
 	// 6. Enviar el correo.
 	if err := dialer.DialAndSend(m); err != nil {
-		msg := fmt.Sprintf("SendMail: Error al enviar correo a través de %s:%d. Error: %v", config.Smtp, config.Puerto, err)
+		msg := fmt.Sprintf("SendMail: Error al enviar correo a %s a través de %s:%d. Error: %v", f.To, config.Smtp, config.Puerto, err)
 		utils.CreateLog(msg)
 		return fmt.Errorf("error al enviar correo: %w", err)
 	}
 
-	utils.CreateLog(fmt.Sprintf("Correo enviado exitosamente a %s", f.To))
+	utils.CreateLog(fmt.Sprintf("SendMail: Correo enviado exitosamente a %s", f.To))
 	return nil
 }
 
