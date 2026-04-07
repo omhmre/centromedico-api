@@ -12,6 +12,7 @@ type DoctoresModel struct {
 	Whatsapp  string  `json:"whatsapp"`
 	Instagram    string  `json:"instagram"`
 	Tasapago    float32 `json:"tasapago"`
+	MontoCita   float32 `json:"monto_cita"`
 	DaysOfWeek  []int   `json:"daysOfWeek"`
 	StartTime   string  `json:"startTime"`
 	EndTime     string  `json:"endTime"`

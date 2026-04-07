@@ -530,11 +530,11 @@ const sqlDelEmailConfig = `DELETE FROM empre001.emailconfig WHERE id = $1;`
 const sqlDelPresupuesto = `DELETE FROM empre001.presupuestos `
 
 const sqlGetDoctores = `select d.id, d.nombres, d.espec, d.dir, d.tlf, d.correo, d.whatsapp, d.instagram, 
-d.tasapago, d.days_of_week, d.start_time, d.end_time, d.slot_duration from medi001.doctores d order by d.nombres;`
+d.tasapago, d.monto_cita, d.days_of_week, d.start_time, d.end_time, d.slot_duration from medi001.doctores d order by d.nombres;`
 
 const sqlUpdDoctores = `update medi001.doctores set 
 nombres = $2, espec = $3, dir = $4, tlf = $5, correo = $6, whatsapp = $7, instagram = $8, tasapago = $9,
-days_of_week = $10, start_time = $11, end_time = $12, slot_duration = $13
+days_of_week = $10, start_time = $11, end_time = $12, slot_duration = $13, monto_cita = $14
 where id = $1;`
 
 const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at
@@ -555,8 +555,8 @@ const sqlUpdPacienteStatus = `UPDATE medi001.pacientes SET status=$2 WHERE id=$1
 const sqlDelPaciente = `DELETE FROM medi001.pacientes WHERE id = $1;`
 
 const sqlPostDoctor = `INSERT INTO medi001.doctores
-(id, nombres, espec, dir, tlf, correo, whatsapp, instagram, tasapago, days_of_week, start_time, end_time, slot_duration)
-VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);`
+(id, nombres, espec, dir, tlf, correo, whatsapp, instagram, tasapago, days_of_week, start_time, end_time, slot_duration, monto_cita)
+VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);`
 
 const sqlDelDoctor = `DELETE FROM medi001.doctores WHERE id = $1;`
 

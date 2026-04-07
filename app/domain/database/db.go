@@ -604,6 +604,7 @@ func (d *DB) UpdDoctores(i models.DoctoresModel) models.Respuesta {
 		i.StartTime,    // $11
 		i.EndTime,      // $12
 		i.SlotDuration, // $13
+		i.MontoCita,    // $14
 	)
 	if err != nil {
 		rp.Status = 500
@@ -655,6 +656,7 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 				&doctor.StartTime,
 				&doctor.EndTime,
 				&doctor.SlotDuration,
+				&doctor.MontoCita,
 			)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
@@ -690,6 +692,7 @@ func (d *DB) PostDoctor(i models.DoctoresModel) models.Respuesta {
 		i.StartTime,    // $10
 		i.EndTime,      // $11
 		i.SlotDuration, // $12
+		i.MontoCita,    // $13
 	)
 	if err != nil {
 		rp.Status = 501
