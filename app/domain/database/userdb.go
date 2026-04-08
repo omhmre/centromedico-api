@@ -92,29 +92,9 @@ func (d *DB) AddUsuario(i models.NuevoUsuario) models.Respuesta {
 		rp.Status = 502
 		rp.Mensaje = err1.Error()
 	} else if datos > 0 {
-		// Enviar correo con la contraseña ORIGINAL (sin hashear)
-		if i.Correo != "" {
-			subject := "Departamento de Seguridad - Nuevo Usuario Creado"
-			emailBody := fmt.Sprintf("Hola %s,\n\nSe ha creado un nuevo usuario para usted en Admin.\n\nSus credenciales son:\nCódigo de Usuario: %s\nContraseña: %s\n\nPor favor, inicie sesión y cambie su contraseña lo antes posible.\n\nSaludos,\nEl equipo de Admin", i.Nombre, i.Codigo, originalClave)
-			mailToSend := models.MailSend{
-				To:      i.Correo,
-				Subject: subject,
-				Body:    emailBody,
-			}
-			errMail := d.SendMail(mailToSend)
-			if errMail != nil {
-				rp.Status = 200 // Se creó el usuario, pero el correo falló
-				rp.Mensaje = fmt.Sprintf("Usuario Agregado Correctamente, pero falló el envío del correo: %v", errMail)
-				utils.CreateLog("AddUsuario Error: " + rp.Mensaje)
-			} else {
-				rp.Status = 200
-				rp.Mensaje = "Usuario Agregado Correctamente y correo enviado."
-			}
-		} else {
-			rp.Status = 200
-			rp.Mensaje = "Usuario Agregado Correctamente (Sin correo registrado)."
-			utils.CreateLog("AddUsuario: Usuario creado sin correo para " + i.Codigo)
-		}
+		rp.Status = 200
+		rp.Mensaje = "Usuario Agregado Correctamente."
+		utils.CreateLog("AddUsuario: Usuario creado exitosamente: " + i.Codigo)
 	} else {
 		rp.Status = 201
 		rp.Mensaje = "No se encontro ningun registro con los datos proporcionados!"
@@ -227,13 +207,10 @@ func generateJWT(strUsuario string, horas int) (string, error) {
 
 func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 	var rp models.Respuesta
-	var correo, nombre string
-
-	utils.CreateLog(fmt.Sprintf("ChangePassword: Attempting to change password for user %s", u.Codigo))
-
-	// 1. Obtener correo y nombre del usuario
-	row := d.db.QueryRow(`SELECT u.correo, u.nombre FROM seguridad.usuarios u WHERE u.codigo = $1;`, u.Codigo)
-	err := row.Scan(&correo, &nombre)
+	var nombre string
+	// 1. Verificar que el usuario existe
+	row := d.db.QueryRow(`SELECT u.nombre FROM seguridad.usuarios u WHERE u.codigo = $1;`, u.Codigo)
+	err := row.Scan(&nombre)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			rp.Status = 404
@@ -241,74 +218,48 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 		} else {
 			rp.Status = 500
 			rp.Mensaje = "Error al consultar el usuario: " + err.Error()
-			utils.CreateLog(fmt.Sprintf("ChangePassword: Error querying user %s: %v", u.Codigo, err))
 		}
 		return rp
 	}
 
-	if correo != "" {
-		// 2. Generar una nueva contraseña aleatoria
-		originalClave := strconv.Itoa(crearClave())
+	// 2. Validar que se proporcionó una nueva clave
+	if u.Clave == "" {
+		rp.Status = 400
+		rp.Mensaje = "La nueva contraseña es requerida."
+		return rp
+	}
 
-		// 3. Hashear la nueva contraseña para almacenamiento seguro
-		hashedClaveBytes, errHash := bcrypt.GenerateFromPassword([]byte(originalClave), bcrypt.DefaultCost)
-		if errHash != nil {
-			rp.Status = 500
-			rp.Mensaje = "Error al hashear la nueva contraseña: " + errHash.Error()
-			utils.CreateLog(rp.Mensaje)
-			return rp
-		}
-		utils.CreateLog(fmt.Sprintf("ChangePassword: Hashed new password for user %s.", u.Codigo))
-
-		hashedClave := string(hashedClaveBytes)
-
-		// 4. Actualizar la contraseña hasheada en la base de datos
-		resp, errUpdate := d.db.Exec(`UPDATE seguridad.usuarios SET clave = $1 WHERE codigo = $2;`, hashedClave, u.Codigo)
-		if errUpdate != nil {
-			rp.Status = 500
-			rp.Mensaje = "Error al actualizar la contraseña en la base de datos: " + errUpdate.Error()
-			utils.CreateLog(fmt.Sprintf("ChangePassword: Error updating password in DB for user %s: %v", u.Codigo, errUpdate))
-			return rp
-		}
-		utils.CreateLog(fmt.Sprintf("ChangePassword: Database update attempted for user %s.", u.Codigo))
-
-		nreg, _ := resp.RowsAffected()
-		if nreg > 0 {
-			utils.CreateLog(fmt.Sprintf("ChangePassword: Password updated in DB for user %s. Rows affected: %d", u.Codigo, nreg))
-			// 5. Enviar correo con la contraseña ORIGINAL usando el método centralizado
-			subject := "Departamento de Seguridad - Cambio de Contraseña"
-			emailBody := fmt.Sprintf("Hola %s,\n\nSe ha solicitado un cambio de contraseña para su usuario en Admin.\n\nSus nuevas credenciales son:\nCódigo de Usuario: %s\nContraseña: %s\n\nPor favor, inicie sesión y cambie su contraseña lo antes posible.\n\nSaludos,\nEl equipo de Admin", nombre, u.Codigo, originalClave)
-
-			mailToSend := models.MailSend{
-				To:      correo,
-				Subject: subject,
-				Body:    emailBody,
-			}
-			errMail := d.SendMail(mailToSend)
-			if errMail != nil {
-				rp.Status = 500
-				rp.Mensaje = "Clave actualizada en base de datos, pero falló el envío del correo: " + errMail.Error()
-				utils.CreateLog("ChangePassword Error: " + rp.Mensaje)
-				return rp
-			}
-
-			rp.Status = 200
-			rp.Mensaje = "Clave actualizada exitosamente. Se ha enviado un correo con la nueva contraseña."
-			utils.CreateLog(fmt.Sprintf("ChangePassword: Password reset email sent successfully for user %s to %s.", u.Codigo, correo))
-			return rp
-		}
-
+	// 3. Hashear la nueva contraseña proporcionada
+	hashedClaveBytes, errHash := bcrypt.GenerateFromPassword([]byte(u.Clave), bcrypt.DefaultCost)
+	if errHash != nil {
 		rp.Status = 500
-		rp.Mensaje = "No se pudo actualizar la contraseña."
-		utils.CreateLog(fmt.Sprintf("ChangePassword: No rows affected when updating password for user %s.", u.Codigo))
-		return rp
-
-	} else {
-		rp.Status = 404
-		rp.Mensaje = "El usuario no tiene un correo electrónico registrado."
-		utils.CreateLog(fmt.Sprintf("ChangePassword: User %s has no email registered.", u.Codigo))
+		rp.Mensaje = "Error al hashear la nueva contraseña: " + errHash.Error()
+		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
+
+	hashedClave := string(hashedClaveBytes)
+
+	// 4. Actualizar la contraseña en la base de datos
+	resp, errUpdate := d.db.Exec(`UPDATE seguridad.usuarios SET clave = $1 WHERE codigo = $2;`, hashedClave, u.Codigo)
+	if errUpdate != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al actualizar la contraseña: " + errUpdate.Error()
+		utils.CreateLog(fmt.Sprintf("ChangePassword Error: %v", errUpdate))
+		return rp
+	}
+
+	nreg, _ := resp.RowsAffected()
+	if nreg > 0 {
+		rp.Status = 200
+		rp.Mensaje = "Contraseña actualizada exitosamente."
+		utils.CreateLog(fmt.Sprintf("ChangePassword: Password updated manually for user %s", u.Codigo))
+		return rp
+	}
+
+	rp.Status = 500
+	rp.Mensaje = "No se pudo actualizar la contraseña."
+	return rp
 }
 
 func crearClave() int {
