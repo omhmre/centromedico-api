@@ -776,7 +776,7 @@ SELECT
          THEN ROUND(COUNT(c.id) FILTER (WHERE c.status = 'Completada') * 100.0 / COUNT(c.id), 2)
          ELSE 0 END                                                  AS tasa_completadas
 FROM medi001.citas c
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
 WHERE DATE(c.inicio) BETWEEN $1 AND $2;`
 
 const sqlBICitasPorDia = `
@@ -785,7 +785,7 @@ SELECT
     COUNT(c.id)              AS citas,
     COALESCE(SUM(pay.amount), 0) AS ingresos
 FROM medi001.citas c
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
 WHERE DATE(c.inicio) BETWEEN $1 AND $2
 GROUP BY DATE(c.inicio)
 ORDER BY DATE(c.inicio);`
@@ -801,7 +801,7 @@ SELECT
          ELSE 0 END                         AS tasa_eficiencia
 FROM medi001.citas c
 LEFT JOIN medi001.doctores d ON c.iddoctor = d.id
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
 WHERE DATE(c.inicio) BETWEEN $1 AND $2
 GROUP BY d.espec
 ORDER BY total_citas DESC;`
@@ -817,13 +817,13 @@ SELECT
          ELSE 0 END          AS eficiencia
 FROM medi001.citas c
 JOIN medi001.doctores d ON c.iddoctor = d.id
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
 WHERE DATE(c.inicio) BETWEEN $1 AND $2
 GROUP BY d.id, d.nombres
 ORDER BY ingresos DESC;`
 
 const sqlBIMetodosPago = `
-WITH total AS (SELECT COALESCE(SUM(amount), 0) AS grand_total FROM medi001.payments WHERE status = 'Pagado' AND DATE(date) BETWEEN $1 AND $2)
+WITH total AS (SELECT COALESCE(SUM(amount), 0) AS grand_total FROM medi001.payments WHERE status = 'Completado' AND DATE(date) BETWEEN $1 AND $2)
 SELECT
     paymentmethod           AS metodo,
     COALESCE(SUM(amount), 0) AS total,
@@ -831,7 +831,7 @@ SELECT
          THEN ROUND(SUM(amount) * 100.0 / (SELECT grand_total FROM total), 2)
          ELSE 0 END         AS porcentaje
 FROM medi001.payments
-WHERE status = 'Pagado' AND DATE(date) BETWEEN $1 AND $2
+WHERE status = 'Completado' AND DATE(date) BETWEEN $1 AND $2
 GROUP BY paymentmethod
 ORDER BY total DESC;`
 
