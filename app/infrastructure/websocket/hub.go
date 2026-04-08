@@ -6,28 +6,27 @@ import (
 	"time"
 )
 
-// Hub maintains the set of active clients and broadcasts messages to them.
+// Hub maintains the set of active clients and broadcasts messages to the clients.
 type Hub struct {
 	// Registered clients.
-	Clients map[*Client]bool
+	clients map[*Client]bool
 
 	// Inbound messages from the clients.
-	Broadcast chan []byte
+	broadcast chan []byte
 
 	// Register requests from the clients.
-	Register chan *Client
+	register chan *Client
 
 	// Unregister requests from clients.
-	Unregister chan *Client
+	unregister chan *Client
 }
 
-// NewHub creates a new Hub instance.
 func NewHub() *Hub {
 	return &Hub{
-		Broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Clients:    make(map[*Client]bool),
+		broadcast:  make(chan []byte),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
+		clients:    make(map[*Client]bool),
 	}
 }
 
@@ -47,35 +46,52 @@ type HubMessage struct {
 	Payload interface{} `json:"payload"`
 }
 
-// Run starts the hub's message processing loop.
 func (h *Hub) Run() {
 	for {
 		select {
-		case client := <-h.Register:
-			h.Clients[client] = true
-		case client := <-h.Unregister:
-			if _, ok := h.Clients[client]; ok {
-				delete(h.Clients, client)
+		case client := <-h.register:
+			h.clients[client] = true
+			// We don't immediately broadcast on register because device metadata hasn't arrived yet.
+			// It arrives via a "register" websocket message.
+
+		case client := <-h.unregister:
+			if _, ok := h.clients[client]; ok {
+				delete(h.clients, client)
 				close(client.send)
-				h.BroadcastDeviceList()
+				h.broadcastDeviceList()
 			}
-		case message := <-h.Broadcast:
-			for client := range h.Clients {
-				client.send <- message
+
+		case message := <-h.broadcast:
+			for client := range h.clients {
+				select {
+				case client.send <- message:
+				default:
+					close(client.send)
+					delete(h.clients, client)
+				}
 			}
 		}
 	}
 }
 
-// BroadcastDeviceList sends the list of all currently registered devices to all clients.
-func (h *Hub) BroadcastDeviceList() {
+// Broadcasts the list of all currently registered devices to all clients
+func (h *Hub) broadcastDeviceList() {
 	var devices []DeviceInfo
 	now := time.Now()
 
-	for client := range h.Clients {
+	for client := range h.clients {
 		if client.DeviceInfo != nil {
 			uptimeDur := now.Sub(client.DeviceInfo.Connected)
+			
+			uptimeStr := "Minutos"
+			if uptimeDur.Hours() >= 1 {
+				uptimeStr = "Horas"
+			} else if uptimeDur.Minutes() < 1 {
+				uptimeStr = "Segundos"
+			}
+
 			client.DeviceInfo.Uptime = formatDuration(uptimeDur)
+
 			devices = append(devices, *client.DeviceInfo)
 		}
 	}
@@ -87,12 +103,12 @@ func (h *Hub) BroadcastDeviceList() {
 
 	raw, err := json.Marshal(msg)
 	if err == nil {
-		for client := range h.Clients {
+		for c := range h.clients {
 			select {
-			case client.send <- raw:
+			case c.send <- raw:
 			default:
-				close(client.send)
-				delete(h.Clients, client)
+				close(c.send)
+				delete(h.clients, c)
 			}
 		}
 	} else {
@@ -102,7 +118,7 @@ func (h *Hub) BroadcastDeviceList() {
 
 func formatDuration(d time.Duration) string {
 	if d.Hours() > 24 {
-		return "> 1 día"
+		return "Más de 1 día"
 	}
 	if d.Hours() >= 1 {
 		return "Hace horas"

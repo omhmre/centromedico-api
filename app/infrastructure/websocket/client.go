@@ -1,11 +1,13 @@
 package websocket
 
 import (
-	"time"
+	"bytes"
 	"encoding/json"
+	"log"
+	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
-	"omhmre.com/centromedico/app/domain/utils"
 )
 
 const (
@@ -22,9 +24,21 @@ const (
 	maxMessageSize = 512
 )
 
+var (
+	newline = []byte{'\n'}
+	space   = []byte{' '}
+)
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	// In production, you should verify the Origin properly.
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	Hub *Hub
+	hub *Hub
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -36,19 +50,10 @@ type Client struct {
 	DeviceInfo *DeviceInfo
 }
 
-// NewClient creates a new client instance.
-func NewClient(hub *Hub, conn *websocket.Conn) *Client {
-	return &Client{
-		Hub:  hub,
-		conn: conn,
-		send: make(chan []byte, 256),
-	}
-}
-
 // ReadPump pumps messages from the websocket connection to the hub.
 func (c *Client) ReadPump() {
 	defer func() {
-		c.Hub.Unregister <- c
+		c.hub.unregister <- c
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -57,12 +62,13 @@ func (c *Client) ReadPump() {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNoStatusReceived) {
-				utils.CreateLog("websocket error: " + err.Error())
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v", err)
 			}
 			break
 		}
-		
+		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+
 		// Parse the message to see if it's a registration
 		var msg HubMessage
 		if err := json.Unmarshal(message, &msg); err == nil {
@@ -71,14 +77,10 @@ func (c *Client) ReadPump() {
 				var devInfo DeviceInfo
 				if err := json.Unmarshal(payloadJson, &devInfo); err == nil {
 					devInfo.Connected = time.Now()
-					// Default IP fallback if missing
-					if devInfo.IP == "" {
-						devInfo.IP = c.conn.RemoteAddr().String()
-					}
 					c.DeviceInfo = &devInfo
 					
-					// Tell the hub to broadcast the updated list
-					c.Hub.BroadcastDeviceList()
+					// Tell the hub to broadcast the updated list!
+					c.hub.broadcastDeviceList()
 				}
 			}
 		}
@@ -108,9 +110,10 @@ func (c *Client) WritePump() {
 			}
 			w.Write(message)
 
-			// Add queued messages to the current websocket message.
+			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
+				w.Write(newline)
 				w.Write(<-c.send)
 			}
 
@@ -124,4 +127,35 @@ func (c *Client) WritePump() {
 			}
 		}
 	}
+}
+
+// ServeWs handles websocket requests from the peer.
+func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	
+	// Create the client
+	// Note: We get IP from RemoteAddr or Forwarded-For headers
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = r.RemoteAddr
+	}
+
+	client := &Client{
+		hub:  hub,
+		conn: conn,
+		send: make(chan []byte, 256),
+		DeviceInfo: &DeviceInfo{
+			IP: ip,
+			// Will be populated by their auth frame
+		},
+	}
+	client.hub.register <- client
+
+	// Allow collection of memory referenced by the caller by doing all work in new goroutines.
+	go client.WritePump()
+	go client.ReadPump()
 }
