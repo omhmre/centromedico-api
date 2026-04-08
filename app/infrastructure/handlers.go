@@ -1710,3 +1710,119 @@ func (a *App) DelCompra() http.HandlerFunc {
 		}
 	}
 }
+
+// ─── Handlers de Inteligencia de Negocio ─────────────────────────────────────
+
+func (a *App) GetBIResumen() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		desde := r.URL.Query().Get("start")
+		hasta := r.URL.Query().Get("end")
+		if desde == "" || hasta == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Se requieren los parámetros start y end"})
+			return
+		}
+		data, rp := a.DB.GetBIResumenGeneral(desde, hasta)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(data)
+	}
+}
+
+func (a *App) GetBISeries() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		desde := r.URL.Query().Get("start")
+		hasta := r.URL.Query().Get("end")
+		if desde == "" || hasta == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Se requieren los parámetros start y end"})
+			return
+		}
+		data, rp := a.DB.GetBICitasPorDia(desde, hasta)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(data)
+	}
+}
+
+func (a *App) GetBIEspecialidades() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		desde := r.URL.Query().Get("start")
+		hasta := r.URL.Query().Get("end")
+		if desde == "" || hasta == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Se requieren los parámetros start y end"})
+			return
+		}
+		data, rp := a.DB.GetBICitasPorEspecialidad(desde, hasta)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(data)
+	}
+}
+
+func (a *App) GetBIDoctores() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		desde := r.URL.Query().Get("start")
+		hasta := r.URL.Query().Get("end")
+		if desde == "" || hasta == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Se requieren los parámetros start y end"})
+			return
+		}
+		data, rp := a.DB.GetBIRendimientoDoctor(desde, hasta)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(data)
+	}
+}
+
+func (a *App) GetBIPagos() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		desde := r.URL.Query().Get("start")
+		hasta := r.URL.Query().Get("end")
+		if desde == "" || hasta == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Se requieren los parámetros start y end"})
+			return
+		}
+		data, rp := a.DB.GetBIMetodosPago(desde, hasta)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(data)
+	}
+}
+
+func (a *App) GetBIHeatmap() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		desde := r.URL.Query().Get("start")
+		hasta := r.URL.Query().Get("end")
+		if desde == "" || hasta == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Se requieren los parámetros start y end"})
+			return
+		}
+		data, rp := a.DB.GetBIHeatmap(desde, hasta)
+		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(data)
+	}
+}

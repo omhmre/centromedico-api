@@ -146,6 +146,13 @@ type PostDB interface {
 	AddInformeMedico(i models.InformeMedico) models.Respuesta
 	UpdInformeMedico(i models.InformeMedico) models.Respuesta
 	DelInformeMedico(id int) models.Respuesta
+	// Inteligencia de Negocio
+	GetBIResumenGeneral(desde, hasta string) (models.BIResumen, models.Respuesta)
+	GetBICitasPorDia(desde, hasta string) ([]models.BITimeSeries, models.Respuesta)
+	GetBICitasPorEspecialidad(desde, hasta string) ([]models.BIEspecialidad, models.Respuesta)
+	GetBIRendimientoDoctor(desde, hasta string) ([]models.BIDoctor, models.Respuesta)
+	GetBIMetodosPago(desde, hasta string) ([]models.BIMetodoPago, models.Respuesta)
+	GetBIHeatmap(desde, hasta string) ([]models.BIHeatmapCell, models.Respuesta)
 }
 
 type DB struct {

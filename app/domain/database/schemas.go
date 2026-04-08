@@ -758,3 +758,90 @@ WHERE pagado = 0
   AND montoref != 0;
 `
 const sqlGetAllPacientesData = `SELECT medi001.get_all_pacientes_data($1, $2);`
+
+// ─── SQL de Inteligencia de Negocio ──────────────────────────────────────────
+
+const sqlBIResumenGeneral = `
+SELECT
+    COUNT(c.id)                                                      AS total_citas,
+    COUNT(c.id) FILTER (WHERE c.status = 'Completada')               AS completadas,
+    COUNT(c.id) FILTER (WHERE c.status = 'Cancelada')                AS canceladas,
+    COUNT(c.id) FILTER (WHERE c.status NOT IN ('Completada','Cancelada')) AS pendientes,
+    COALESCE(SUM(pay.amount), 0)                                     AS total_ingresos_usd,
+    CASE WHEN COUNT(c.id) FILTER (WHERE c.status = 'Completada') > 0
+         THEN COALESCE(SUM(pay.amount), 0) / NULLIF(COUNT(c.id) FILTER (WHERE c.status = 'Completada'), 0)
+         ELSE 0 END                                                  AS ingreso_por_cita,
+    COUNT(DISTINCT c.cedula)                                         AS pacientes_unicos,
+    CASE WHEN COUNT(c.id) > 0
+         THEN ROUND(COUNT(c.id) FILTER (WHERE c.status = 'Completada') * 100.0 / COUNT(c.id), 2)
+         ELSE 0 END                                                  AS tasa_completadas
+FROM medi001.citas c
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+WHERE DATE(c.inicio) BETWEEN $1 AND $2;`
+
+const sqlBICitasPorDia = `
+SELECT
+    DATE(c.inicio)           AS fecha,
+    COUNT(c.id)              AS citas,
+    COALESCE(SUM(pay.amount), 0) AS ingresos
+FROM medi001.citas c
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+WHERE DATE(c.inicio) BETWEEN $1 AND $2
+GROUP BY DATE(c.inicio)
+ORDER BY DATE(c.inicio);`
+
+const sqlBICitasPorEspecialidad = `
+SELECT
+    COALESCE(d.espec, 'Sin Especialidad')   AS especialidad,
+    COUNT(c.id)                             AS total_citas,
+    COUNT(c.id) FILTER (WHERE c.status = 'Completada') AS completadas,
+    COALESCE(SUM(pay.amount), 0)            AS total_ingresos,
+    CASE WHEN COUNT(c.id) > 0
+         THEN ROUND(COUNT(c.id) FILTER (WHERE c.status = 'Completada') * 100.0 / COUNT(c.id), 2)
+         ELSE 0 END                         AS tasa_eficiencia
+FROM medi001.citas c
+LEFT JOIN medi001.doctores d ON c.iddoctor = d.id
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+WHERE DATE(c.inicio) BETWEEN $1 AND $2
+GROUP BY d.espec
+ORDER BY total_citas DESC;`
+
+const sqlBIRendimientoDoctor = `
+SELECT
+    d.nombres                AS nombre,
+    COUNT(c.id)              AS total_citas,
+    COUNT(c.id) FILTER (WHERE c.status = 'Completada') AS completadas,
+    COALESCE(SUM(pay.amount), 0) AS ingresos,
+    CASE WHEN COUNT(c.id) > 0
+         THEN ROUND(COUNT(c.id) FILTER (WHERE c.status = 'Completada') * 100.0 / COUNT(c.id), 2)
+         ELSE 0 END          AS eficiencia
+FROM medi001.citas c
+JOIN medi001.doctores d ON c.iddoctor = d.id
+LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Pagado'
+WHERE DATE(c.inicio) BETWEEN $1 AND $2
+GROUP BY d.id, d.nombres
+ORDER BY ingresos DESC;`
+
+const sqlBIMetodosPago = `
+WITH total AS (SELECT COALESCE(SUM(amount), 0) AS grand_total FROM medi001.payments WHERE status = 'Pagado' AND DATE(date) BETWEEN $1 AND $2)
+SELECT
+    paymentmethod           AS metodo,
+    COALESCE(SUM(amount), 0) AS total,
+    CASE WHEN (SELECT grand_total FROM total) > 0
+         THEN ROUND(SUM(amount) * 100.0 / (SELECT grand_total FROM total), 2)
+         ELSE 0 END         AS porcentaje
+FROM medi001.payments
+WHERE status = 'Pagado' AND DATE(date) BETWEEN $1 AND $2
+GROUP BY paymentmethod
+ORDER BY total DESC;`
+
+const sqlBIHeatmap = `
+SELECT
+    EXTRACT(DOW FROM c.inicio)::int  AS dia_semana,
+    EXTRACT(HOUR FROM c.inicio)::int AS hora,
+    COUNT(c.id)                      AS cantidad
+FROM medi001.citas c
+WHERE DATE(c.inicio) BETWEEN $1 AND $2
+  AND c.status != 'Cancelada'
+GROUP BY dia_semana, hora
+ORDER BY dia_semana, hora;`

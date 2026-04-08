@@ -271,4 +271,12 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/postpayments", a.PostPayments())
 	a.Router.HandleFunc("/getrelpagos", a.GetRelPagos())
 	a.Router.HandleFunc("/delpayment", a.DelPayment())
+
+	// Inteligencia de Negocio (BI)
+	a.Router.HandleFunc("/bi/resumen", a.GetBIResumen())
+	a.Router.HandleFunc("/bi/series", a.GetBISeries())
+	a.Router.HandleFunc("/bi/especialidades", a.GetBIEspecialidades())
+	a.Router.HandleFunc("/bi/doctores", a.GetBIDoctores())
+	a.Router.HandleFunc("/bi/pagos", a.GetBIPagos())
+	a.Router.HandleFunc("/bi/heatmap", a.GetBIHeatmap())
 }
