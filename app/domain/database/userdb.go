@@ -50,6 +50,7 @@ func (d *DB) GetUsers() ([]models.Usuario, models.Respuesta) {
 			&usuario.Whatsapp,
 			&usuario.Instagram,
 			&usuario.Idvendedor,
+			&usuario.Foto,
 		)
 		usuarios = append(usuarios, usuario)
 	}
@@ -78,8 +79,8 @@ func (d *DB) AddUsuario(i models.NuevoUsuario) models.Respuesta {
 	hashedClave := string(hashedClaveBytes)
 
 	// Insertar usuario en la base de datos con la contraseña hasheada
-	resp, err := d.db.Exec(`INSERT INTO seguridad.usuarios (codigo,clave,nombre,idtipouser,idperfil,status,direccion,direccion2,ciudad,estado,telf,cel,correo,idvendedor) VALUES
-     ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14);`, i.Codigo, hashedClave, i.Nombre, i.Idtipouser, i.Idperfil, i.Status, i.Direccion, i.Direccion2, i.Ciudad, i.Estado, i.Telf, i.Cel, i.Correo, i.Idvendedor)
+	resp, err := d.db.Exec(`INSERT INTO seguridad.usuarios (codigo,clave,nombre,idtipouser,idperfil,status,direccion,direccion2,ciudad,estado,telf,cel,correo,idvendedor,foto) VALUES
+     ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15);`, i.Codigo, hashedClave, i.Nombre, i.Idtipouser, i.Idperfil, i.Status, i.Direccion, i.Direccion2, i.Ciudad, i.Estado, i.Telf, i.Cel, i.Correo, i.Idvendedor, i.Foto)
 	if err != nil {
 		rp.Status = 501
 		rp.Mensaje = "No se pudo Agregar la Informacion de Usuario. " + err.Error()
@@ -131,6 +132,7 @@ func (d *DB) Login(u models.LoginUsuario) models.LoginData {
 		&user.Whatsapp,
 		&user.Instagram,
 		&user.Idvendedor,
+		&user.Foto,
 	)
 
 	if err != nil {
@@ -297,11 +299,11 @@ func (d *DB) UpdateUsuario(u models.Usuario) models.Respuesta {
 	resp, err := d.db.Exec(`UPDATE seguridad.usuarios 
         SET codigo = $1, nombre = $2, idtipouser = $3, idperfil = $4, status = $5, 
             direccion = $6, direccion2 = $7, ciudad = $8, estado = $9, telf = $10, cel = $11, 
-            correo = $12, facebook = $13, whatsapp = $14, instagram = $15, idvendedor = $16
-        WHERE id = $17;`,
+            correo = $12, facebook = $13, whatsapp = $14, instagram = $15, idvendedor = $16, foto = $17
+        WHERE id = $18;`,
 		u.Codigo, u.Nombre, u.Idtipouser, u.Idperfil, u.Status,
 		u.Direccion, u.Direccion2, u.Ciudad, u.Estado, u.Telf, u.Cel,
-		u.Correo, u.Facebook, u.Whatsapp, u.Instagram, u.Idvendedor, u.Id)
+		u.Correo, u.Facebook, u.Whatsapp, u.Instagram, u.Idvendedor, u.Foto, u.Id)
 
 	if err != nil {
 		rp.Status = 501

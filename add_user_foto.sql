@@ -1,0 +1,1 @@
+ALTER TABLE seguridad.usuarios ADD COLUMN IF NOT EXISTS foto TEXT;

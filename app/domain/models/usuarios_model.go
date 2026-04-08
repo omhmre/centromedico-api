@@ -24,6 +24,7 @@ type Usuario struct {
 	Whatsapp   string `json:"whatsapp"`
 	Instagram  string `json:"instagram"`
 	Idvendedor string `json:"idvendedor"`
+	Foto       string `json:"foto"`
 }
 
 type NuevoUsuario struct {
@@ -45,6 +46,7 @@ type NuevoUsuario struct {
 	Whatsapp   string `json:"whatsapp"`
 	Instagram  string `json:"instagram"`
 	Idvendedor string `json:"idvendedor"`
+	Foto       string `json:"foto"`
 }
 
 type Token struct {

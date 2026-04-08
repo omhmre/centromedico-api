@@ -377,7 +377,7 @@ on a.idvendedor = v.id where a.id = $1;`
 const sqlGetUsuarios = `SELECT u.id, u.codigo, u.clave, u.nombre, u.idtipouser, t.tipo, u.idperfil, u.status, 
 u.direccion, u.direccion2, u.ciudad, u.estado, u.telf, u.cel, u.correo, COALESCE(facebook, '') as facebook,
     COALESCE(whatsapp, '') as whatsapp,
-    COALESCE(instagram, '') as instagram, u.idvendedor
+    COALESCE(instagram, '') as instagram, u.idvendedor, COALESCE(u.foto, '') as foto
 FROM seguridad.usuarios u left join seguridad.tipouser t on u.idtipouser = t.id`
 
 const sqlGetUsuarioWhere = ` where u.codigo = $1 and u.clave = $2;`
