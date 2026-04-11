@@ -211,6 +211,8 @@ func (d *DB) GetRelPagos(p models.Fechas) ([]models.RelPagos, models.Respuesta) 
 				&montoCita,
 				&formaPago,
 				&payment.Saldo,
+				&payment.StatusCita,
+				&payment.MontoFacturadoCita,
 				&payment.Pago_doctor,
 				&montoDoctor,
 			)
@@ -1065,7 +1067,31 @@ func (d *DB) Open() error {
 	d.db = pg
 	d.Conn = pg // Asignar la conexión también al campo 'Conn'
 
+	// Ejecutar migraciones automáticas
+	d.CheckAndMigrate()
+
 	return nil
+}
+
+// CheckAndMigrate reads the medical_history_tables.sql file and executes it
+func (d *DB) CheckAndMigrate() {
+	sqlFile := "./app/domain/database/medical_history_tables.sql"
+	content, err := os.ReadFile(sqlFile)
+	if err != nil {
+		utils.CreateLog("No se pudo leer el archivo de migración: " + err.Error())
+		// Intentar con ruta alternativa si falla (dependiendo de dónde se ejecute)
+		content, err = os.ReadFile("app/domain/database/medical_history_tables.sql")
+		if err != nil {
+			return
+		}
+	}
+
+	_, err = d.db.Exec(string(content))
+	if err != nil {
+		utils.CreateLog("Error al ejecutar migración: " + err.Error())
+	} else {
+		utils.CreateLog("Migración de tablas de historial médico completada exitosamente")
+	}
 }
 
 func (d *DB) Close() error {

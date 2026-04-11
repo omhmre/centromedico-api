@@ -673,6 +673,8 @@ const sqlGetRelPagos = `SELECT
     SUM(pay.amount) AS monto_cobrado_cita,
     STRING_AGG(DISTINCT pay.paymentmethod, ', ') AS formas_pago,
     c.saldo AS saldo_cita,
+    c.status AS status_cita,
+    c.montoref AS monto_facturado_cita,
     d.tasapago AS porcentaje_pago_doctor, 
     (SUM(pay.amount) * (d.tasapago / 100.0)) AS monto_correspondiente_doctor
 FROM medi001.citas c
@@ -687,7 +689,9 @@ GROUP BY
     pay.date,
     c.id, 
     d.tasapago, 
-    c.saldo
+    c.saldo,
+    c.status,
+    c.montoref
 ORDER BY 
     d.nombres, 
     paci.nombres, 

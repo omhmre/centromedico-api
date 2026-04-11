@@ -64,14 +64,16 @@ type Payments struct {
 }
 
 type RelPagos struct {
-	Doctor_id       int64   `json:"doctor_id"`
-	Doctor_name     string  `json:"doctor_name"`
-	Cita_id         int64   `json:"cita_id"`
-	Paciente_nombre string  `json:"paciente_nombre"`
-	Fecha_pago      string  `json:"fecha_pago"`
-	Monto_cita      float64 `json:"monto_cita"`
-	Pago_doctor     float64 `json:"pago_doctor"`
-	Monto_doctor    float64 `json:"monto_doctor"`
-	Forma_pago      string  `json:"formas_pago"`
-	Saldo           float64 `json:"saldo"`
+	Doctor_id            int64   `json:"doctor_id"`
+	Doctor_name          string  `json:"doctor_name"`
+	Cita_id              int64   `json:"cita_id"`
+	Paciente_nombre      string  `json:"paciente_nombre"`
+	Fecha_pago           string  `json:"fecha_pago"`
+	Monto_cita           float64 `json:"monto_cita"`
+	Pago_doctor          float64 `json:"pago_doctor"`
+	Monto_doctor         float64 `json:"monto_doctor"`
+	Forma_pago           string  `json:"formas_pago"`
+	Saldo                float64 `json:"saldo"`
+	StatusCita           string  `json:"status_cita"`
+	MontoFacturadoCita   float64 `json:"monto_facturado_cita"`
 }
