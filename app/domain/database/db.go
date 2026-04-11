@@ -140,12 +140,14 @@ type PostDB interface {
 	UpdateDiagnosticoCita(cita models.CitaModel) models.Respuesta
 	FetchExchangeRate() (float64, models.Respuesta)
 	UpdateUnpaidAppointmentsVESRate(newRate float64) models.Respuesta
-	// Informes Medicos
-	GetInformesMedicos(idPaciente int) ([]models.InformeMedico, models.Respuesta)
-	GetInformeMedico(id int) (models.InformeMedico, models.Respuesta)
-	AddInformeMedico(i models.InformeMedico) models.Respuesta
-	UpdInformeMedico(i models.InformeMedico) models.Respuesta
-	DelInformeMedico(id int) models.Respuesta
+	PostInformeMedico(i models.InformeMedico) models.Respuesta
+	// Historial Clínico
+	GetAntecedentes(idPaciente int) (models.Antecedentes, models.Respuesta)
+	UpsertAntecedentes(a models.Antecedentes) models.Respuesta
+	GetSignosVitales(idPaciente int) ([]models.SignosVitales, models.Respuesta)
+	PostSignosVitales(v models.SignosVitales) models.Respuesta
+	GetMedicalHistoryTimeline(idPaciente int) ([]models.HistoryTimelineItem, models.Respuesta)
+	GetPatientMedicalInsights(idPaciente int) (map[string]interface{}, models.Respuesta)
 	// Inteligencia de Negocio
 	GetBIResumenGeneral(desde, hasta string) (models.BIResumen, models.Respuesta)
 	GetBICitasPorDia(desde, hasta string) ([]models.BITimeSeries, models.Respuesta)
@@ -254,9 +256,16 @@ func (d *DB) PostPayments(p []models.Payments) models.Respuesta {
 			rp.Mensaje = "No se pudo Agregar la Informacion del Pago. " + err.Error()
 			utils.CreateLog("No se pudo Agregar la Informacion del Pago. " + err.Error())
 			return rp
-		} else {
-			rowsAffected += 1
 		}
+
+		// Sincronizar el campo pagado de la cita para reportes rápidos
+		const sqlUpdateCitaPagado = `UPDATE medi001.citas SET pagado = pagado + $1 WHERE id = $2`
+		_, errUpd := d.db.Exec(sqlUpdateCitaPagado, e.Amount, e.Appointmentid)
+		if errUpd != nil {
+			utils.CreateLog("Error al actualizar saldo pagado en cita: " + errUpd.Error())
+		}
+
+		rowsAffected += 1
 	}
 	rp.Status = 200
 	rp.Mensaje = strconv.FormatInt(int64(rowsAffected), 10) + " pagos agregados correctamente"
@@ -4426,11 +4435,27 @@ func (d *DB) DelCita(e models.IdCitas) models.Respuesta {
 func (d *DB) DelPayment(e models.Id) models.Respuesta {
 	var rp models.Respuesta
 
+	// Recuperar datos del pago antes de borrar para sincronizar el saldo de la cita
+	var amount float64
+	var apptId int
+	errQuery := d.db.QueryRow(`SELECT amount, appointmentid FROM medi001.payments WHERE id = $1`, e.Id).Scan(&amount, &apptId)
+
 	resp, err := d.db.Exec(sqlDelPayments, e.Id)
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "No se pudo eliminar el pago. " + err.Error()
 		return rp
+	}
+
+	// Sincronizar la resta del saldo en la cita si el borrado fue exitoso
+	if errQuery == nil {
+		const sqlUpdateCitaReversa = `UPDATE medi001.citas SET pagado = pagado - $1 WHERE id = $2`
+		_, errReversa := d.db.Exec(sqlUpdateCitaReversa, amount, apptId)
+		if errReversa != nil {
+			utils.CreateLog("Error al revertir saldo pagado en cita: " + errReversa.Error())
+		}
+	} else {
+		utils.CreateLog("DelPayment: No se encontró el registro previo para reversar saldo en cita")
 	}
 	datos, err1 := resp.RowsAffected()
 	if err1 != nil {
@@ -4597,4 +4622,135 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 	rp.Status = 200
 	rp.Mensaje = "Citas obtenidas correctamente"
 	return citas, rp
+}
+
+// --- Implementación Historial Clínico ---
+
+func (d *DB) GetAntecedentes(idPaciente int) (models.Antecedentes, models.Respuesta) {
+	var a models.Antecedentes
+	var rp models.Respuesta
+	err := d.db.QueryRow(sqlGetAntecedentes, idPaciente).Scan(&a.IdPaciente, &a.Medicos, &a.Quirurgicos, &a.Alergicos, &a.Familiares, &a.Habitos, &a.Otros, &a.UltimaActualizacion)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			a.IdPaciente = idPaciente
+			rp.Status = 200
+			return a, rp
+		}
+		rp.Status = 500
+		rp.Mensaje = "Error al obtener antecedentes: " + err.Error()
+		return a, rp
+	}
+	rp.Status = 200
+	return a, rp
+}
+
+func (d *DB) UpsertAntecedentes(a models.Antecedentes) models.Respuesta {
+	var rp models.Respuesta
+	_, err := d.db.Exec(sqlUpsertAntecedentes, a.IdPaciente, a.Medicos, a.Quirurgicos, a.Alergicos, a.Familiares, a.Habitos, a.Otros)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al guardar antecedentes: " + err.Error()
+		return rp
+	}
+	rp.Status = 200
+	rp.Mensaje = "Antecedentes actualizados correctamente"
+	return rp
+}
+
+func (d *DB) GetSignosVitales(idPaciente int) ([]models.SignosVitales, models.Respuesta) {
+	var results []models.SignosVitales
+	var rp models.Respuesta
+	rows, err := d.db.Query(sqlGetSignosVitales, idPaciente)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al obtener signos vitales: " + err.Error()
+		return nil, rp
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v models.SignosVitales
+		err := rows.Scan(&v.Id, &v.IdPaciente, &v.IdCita, &v.Fecha, &v.TensionArterial, &v.FrecuenciaCardiaca, &v.FrecuenciaRespiratoria, &v.Temperatura, &v.SaturacionOxigeno, &v.Peso, &v.Talla, &v.Imc, &v.Notas, &v.UsuarioOperacion)
+		if err != nil {
+			utils.CreateLog("Error scanning signs: " + err.Error())
+			continue
+		}
+		results = append(results, v)
+	}
+	rp.Status = 200
+	return results, rp
+}
+
+func (d *DB) PostSignosVitales(v models.SignosVitales) models.Respuesta {
+	var rp models.Respuesta
+	err := d.db.QueryRow(sqlPostSignosVitales, v.IdPaciente, v.IdCita, v.TensionArterial, v.FrecuenciaCardiaca, v.FrecuenciaRespiratoria, v.Temperatura, v.SaturacionOxigeno, v.Peso, v.Talla, v.Imc, v.Notas, v.UsuarioOperacion).Scan(&v.Id)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al guardar signos vitales: " + err.Error()
+		return rp
+	}
+	rp.Status = 200
+	rp.Mensaje = "Signos vitales guardados con éxito"
+	return rp
+}
+
+func (d *DB) GetMedicalHistoryTimeline(idPaciente int) ([]models.HistoryTimelineItem, models.Respuesta) {
+	var results []models.HistoryTimelineItem
+	var rp models.Respuesta
+	rows, err := d.db.Query(sqlGetMedicalHistoryTimeline, idPaciente)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al obtener línea de tiempo: " + err.Error()
+		return nil, rp
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var i models.HistoryTimelineItem
+		err := rows.Scan(&i.Fecha, &i.Tipo, &i.Detalle, &i.Doctor, &i.Especialidad, &i.IdReferencia)
+		if err != nil {
+			utils.CreateLog("Error scanning timeline: " + err.Error())
+			continue
+		}
+		results = append(results, i)
+	}
+	rp.Status = 200
+	return results, rp
+}
+
+func (d *DB) GetPatientMedicalInsights(idPaciente int) (map[string]interface{}, models.Respuesta) {
+	var rp models.Respuesta
+	insights := make(map[string]interface{})
+
+	// 1. Tendencia de IMC
+	var avgImc float64
+	d.db.QueryRow(`SELECT COALESCE(AVG(imc), 0.0) FROM medi001.paciente_signos_vitales WHERE id_paciente = $1`, idPaciente).Scan(&avgImc)
+	insights["avg_imc"] = avgImc
+
+	// 2. Diagnóstico más frecuente
+	var commonDiagnosis sql.NullString
+	d.db.QueryRow(`SELECT diagnostico FROM medi001.informe_medico WHERE id_paciente = $1 GROUP BY diagnostico ORDER BY COUNT(*) DESC LIMIT 1`, idPaciente).Scan(&commonDiagnosis)
+	if commonDiagnosis.Valid {
+		insights["common_diagnosis"] = commonDiagnosis.String
+	} else {
+		insights["common_diagnosis"] = "N/A"
+	}
+
+	// 3. Frecuencia de visitas
+	var totalVisits int
+	d.db.QueryRow(`SELECT COUNT(*) FROM medi001.citas WHERE cedula = (SELECT cedula FROM medi001.pacientes WHERE id = $1) AND status = 'Completada'`, idPaciente).Scan(&totalVisits)
+	insights["total_completed_visits"] = totalVisits
+
+	rp.Status = 200
+	return insights, rp
+}
+func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
+	var rp models.Respuesta
+	err := d.db.QueryRow(sqlPostInformeMedico, i.IdPaciente, i.IdDoctor, i.IdCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones, i.UsuarioOperacion).Scan(&i.Id)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al guardar informe médico: " + err.Error()
+		return rp
+	}
+	rp.Status = 200
+	rp.Mensaje = "Informe médico guardado con éxito"
+	return rp
 }

@@ -1,0 +1,46 @@
+-- Historial Clínico - Tablas de Apoyo
+
+-- Antecedentes Genales del Paciente
+CREATE TABLE IF NOT EXISTS medi001.paciente_antecedentes (
+    id_paciente INTEGER PRIMARY KEY REFERENCES medi001.pacientes(id) ON DELETE CASCADE,
+    medicos TEXT,
+    quirurgicos TEXT,
+    alergicos TEXT,
+    familiares TEXT,
+    habitos TEXT,
+    otros TEXT,
+    ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Registro de Signos Vitales
+CREATE TABLE IF NOT EXISTS medi001.paciente_signos_vitales (
+    id SERIAL PRIMARY KEY,
+    id_paciente INTEGER REFERENCES medi001.pacientes(id) ON DELETE CASCADE,
+    id_cita INTEGER REFERENCES medi001.citas(id) ON DELETE SET NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    tension_arterial VARCHAR(20),
+    frecuencia_cardiaca INTEGER,
+    frecuencia_respiratoria INTEGER,
+    temperatura DECIMAL(4,2),
+    saturacion_oxigeno INTEGER,
+    peso DECIMAL(5,2),
+    talla DECIMAL(5,2),
+    imc DECIMAL(4,2),
+    notas TEXT,
+    usuario_operacion VARCHAR(50)
+);
+
+-- Evolución Clínica / Informes Médicos
+-- (Si ya existe la tabla, alteramos si es necesario, si no, la creamos)
+CREATE TABLE IF NOT EXISTS medi001.informe_medico (
+    id SERIAL PRIMARY KEY,
+    id_paciente INTEGER REFERENCES medi001.pacientes(id) ON DELETE CASCADE,
+    id_doctor INTEGER REFERENCES medi001.doctores(id) ON DELETE CASCADE,
+    id_cita INTEGER REFERENCES medi001.citas(id) ON DELETE SET NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    diagnostico TEXT,
+    evolucion TEXT,
+    plan TEXT,
+    recomendaciones TEXT,
+    usuario_operacion VARCHAR(50)
+);

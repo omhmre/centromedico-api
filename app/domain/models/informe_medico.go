@@ -15,4 +15,5 @@ type InformeMedico struct {
 	Evolucion       string    `json:"evolucion"`
 	Plan            string    `json:"plan"`
 	Recomendaciones string    `json:"recomendaciones"`
+	UsuarioOperacion string    `json:"usuario_operacion"`
 }

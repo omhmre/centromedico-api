@@ -845,3 +845,41 @@ WHERE DATE(c.inicio) BETWEEN $1 AND $2
   AND c.status != 'Cancelada'
 GROUP BY dia_semana, hora
 ORDER BY dia_semana, hora;`
+
+// --- Historial Clínico ---
+
+const sqlGetAntecedentes = `SELECT id_paciente, medicos, quirurgicos, alergicos, familiares, habitos, otros, ultima_actualizacion FROM medi001.paciente_antecedentes WHERE id_paciente = $1;`
+
+const sqlUpsertAntecedentes = `
+INSERT INTO medi001.paciente_antecedentes (id_paciente, medicos, quirurgicos, alergicos, familiares, habitos, otros, ultima_actualizacion)
+VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+ON CONFLICT (id_paciente) DO UPDATE SET 
+    medicos = EXCLUDED.medicos,
+    quirurgicos = EXCLUDED.quirurgicos,
+    alergicos = EXCLUDED.alergicos,
+    familiares = EXCLUDED.familiares,
+    habitos = EXCLUDED.habitos,
+    otros = EXCLUDED.otros,
+    ultima_actualizacion = NOW();`
+
+const sqlGetSignosVitales = `SELECT id, id_paciente, id_cita, fecha, tension_arterial, frecuencia_cardiaca, frecuencia_respiratoria, temperatura, saturacion_oxigeno, peso, talla, imc, notas, usuario_operacion 
+FROM medi001.paciente_signos_vitales WHERE id_paciente = $1 ORDER BY fecha DESC;`
+
+const sqlPostSignosVitales = `INSERT INTO medi001.paciente_signos_vitales 
+(id_paciente, id_cita, tension_arterial, frecuencia_cardiaca, frecuencia_respiratoria, temperatura, saturacion_oxigeno, peso, talla, imc, notas, usuario_operacion)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
+
+const sqlGetMedicalHistoryTimeline = `
+(SELECT fecha, 'Consulta' as tipo, evolucion as detalle, (SELECT nombres FROM medi001.doctores WHERE id = id_doctor) as doctor, (SELECT espec FROM medi001.doctores WHERE id = id_doctor) as especialidad, id as id_referencia
+ FROM medi001.informe_medico WHERE id_paciente = $1)
+UNION ALL
+(SELECT fecha as fecha, 'Signos Vitales' as tipo, CONCAT('Tensión: ', tension_arterial, ', Peso: ', peso, 'kg') as detalle, '' as doctor, '' as especialidad, id as id_referencia
+ FROM medi001.paciente_signos_vitales WHERE id_paciente = $1)
+ORDER BY fecha DESC;`
+
+const sqlGetInformesMedico = `SELECT id, id_paciente, fecha, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, usuario_operacion 
+FROM medi001.informe_medico WHERE id_paciente = $1 ORDER BY fecha DESC;`
+
+const sqlPostInformeMedico = `INSERT INTO medi001.informe_medico 
+(id_paciente, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, usuario_operacion)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`

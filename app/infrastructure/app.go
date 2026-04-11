@@ -249,6 +249,15 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/putdiagnostico", a.AddDiagnosis())
 	a.Router.HandleFunc("/update-exchange-rate", a.UpdateExchangeRateAndAppointments())
 
+	// Historial Clínico
+	a.Router.HandleFunc("/getantecedentes", a.GetAntecedentes())
+	a.Router.HandleFunc("/postantecedentes", a.PostAntecedentes())
+	a.Router.HandleFunc("/getsignosvitales", a.GetSignosVitales())
+	a.Router.HandleFunc("/postsignosvitales", a.PostSignosVitales())
+	a.Router.HandleFunc("/getmedicaltimeline", a.GetMedicalHistoryTimeline())
+	a.Router.HandleFunc("/getpatientinsights", a.GetPatientMedicalInsights())
+	a.Router.HandleFunc("/postinformemedico", a.PostInformeMedico())
+
 	// Doctores
 	a.Router.HandleFunc("/getdoctores", a.GetDoctores())
 	a.Router.HandleFunc("/putdoctores", a.UpdateDoctores())

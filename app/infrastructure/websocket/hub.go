@@ -83,12 +83,6 @@ func (h *Hub) broadcastDeviceList() {
 		if client.DeviceInfo != nil {
 			uptimeDur := now.Sub(client.DeviceInfo.Connected)
 			
-			uptimeStr := "Minutos"
-			if uptimeDur.Hours() >= 1 {
-				uptimeStr = "Horas"
-			} else if uptimeDur.Minutes() < 1 {
-				uptimeStr = "Segundos"
-			}
 
 			client.DeviceInfo.Uptime = formatDuration(uptimeDur)
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"omhmre.com/centromedico/app/domain/models"
 	"omhmre.com/centromedico/app/domain/utils"
@@ -614,5 +615,126 @@ func (a *App) UpdateExchangeRateAndAppointments() http.HandlerFunc {
 			Rate:    newRate,
 		}
 		sendResponse(w, r, response, http.StatusOK)
+	}
+}
+
+// --- Handlers Historial Clínico ---
+
+func (a *App) GetAntecedentes() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.URL.Query().Get("id_paciente")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "ID de paciente inválido"}, 400)
+			return
+		}
+		datos, resp := a.DB.GetAntecedentes(id)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+			return
+		}
+		json.NewEncoder(w).Encode(datos)
+	}
+}
+
+func (a *App) PostAntecedentes() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var ant models.Antecedentes
+		err := json.NewDecoder(r.Body).Decode(&ant)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Datos inválidos"}, 400)
+			return
+		}
+		resp := a.DB.UpsertAntecedentes(ant)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+		} else {
+			sendResponse(w, r, resp, 200)
+		}
+	}
+}
+
+func (a *App) GetSignosVitales() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.URL.Query().Get("id_paciente")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "ID de paciente inválido"}, 400)
+			return
+		}
+		datos, resp := a.DB.GetSignosVitales(id)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+			return
+		}
+		json.NewEncoder(w).Encode(datos)
+	}
+}
+
+func (a *App) PostSignosVitales() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var v models.SignosVitales
+		err := json.NewDecoder(r.Body).Decode(&v)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Datos inválidos"}, 400)
+			return
+		}
+		resp := a.DB.PostSignosVitales(v)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+		} else {
+			sendResponse(w, r, resp, 200)
+		}
+	}
+}
+
+func (a *App) GetMedicalHistoryTimeline() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.URL.Query().Get("id_paciente")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "ID de paciente inválido"}, 400)
+			return
+		}
+		datos, resp := a.DB.GetMedicalHistoryTimeline(id)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+			return
+		}
+		json.NewEncoder(w).Encode(datos)
+	}
+}
+
+func (a *App) GetPatientMedicalInsights() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.URL.Query().Get("id_paciente")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "ID de paciente inválido"}, 400)
+			return
+		}
+		datos, resp := a.DB.GetPatientMedicalInsights(id)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+			return
+		}
+		json.NewEncoder(w).Encode(datos)
+	}
+}
+func (a *App) PostInformeMedico() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var i models.InformeMedico
+		err := json.NewDecoder(r.Body).Decode(&i)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Datos inválidos"}, 400)
+			return
+		}
+		resp := a.DB.PostInformeMedico(i)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+		} else {
+			a.broadcastEvent("TIMELINE_UPDATED", i.IdPaciente)
+			sendResponse(w, r, resp, 200)
+		}
 	}
 }
