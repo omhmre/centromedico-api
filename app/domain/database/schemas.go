@@ -887,3 +887,17 @@ FROM medi001.informe_medico WHERE id_paciente = $1 ORDER BY fecha DESC;`
 const sqlPostInformeMedico = `INSERT INTO medi001.informe_medico 
 (id_paciente, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, usuario_operacion)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
+
+// ─── SQL de Egresos ──────────────────────────────────────────────────────────
+
+const sqlGetEgresos = `SELECT id, fecha, descripcion, monto, categoria, metodo_pago, referencia, usuario_operacion, fecha_operacion 
+FROM medi001.egresos WHERE fecha BETWEEN $1 AND $2 ORDER BY fecha DESC;`
+
+const sqlPostEgreso = `INSERT INTO medi001.egresos (fecha, descripcion, monto, categoria, metodo_pago, referencia, usuario_operacion, fecha_operacion)
+VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id;`
+
+const sqlUpdEgreso = `UPDATE medi001.egresos SET fecha=$2, descripcion=$3, monto=$4, categoria=$5, metodo_pago=$6, referencia=$7, usuario_operacion=$8
+WHERE id=$1;`
+
+const sqlDelEgreso = `DELETE FROM medi001.egresos WHERE id=$1;`
+

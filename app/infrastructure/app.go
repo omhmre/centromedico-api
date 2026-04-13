@@ -281,6 +281,12 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/getrelpagos", a.GetRelPagos())
 	a.Router.HandleFunc("/delpayment", a.DelPayment())
 
+	// Egresos
+	a.Router.HandleFunc("/getegresos", a.GetEgresos)
+	a.Router.HandleFunc("/postegreso", a.PostEgreso)
+	a.Router.HandleFunc("/putegreso", a.PutEgreso)
+	a.Router.HandleFunc("/delegreso", a.DelEgreso)
+
 	// Inteligencia de Negocio (BI)
 	a.Router.HandleFunc("/bi/resumen", a.GetBIResumen())
 	a.Router.HandleFunc("/bi/series", a.GetBISeries())

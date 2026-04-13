@@ -141,6 +141,11 @@ type PostDB interface {
 	FetchExchangeRate() (float64, models.Respuesta)
 	UpdateUnpaidAppointmentsVESRate(newRate float64) models.Respuesta
 	PostInformeMedico(i models.InformeMedico) models.Respuesta
+	// Egresos
+	GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta)
+	PostEgreso(e models.Egreso) models.Respuesta
+	PutEgreso(e models.Egreso) models.Respuesta
+	DelEgreso(i models.Id) models.Respuesta
 	// Historial Clínico
 	GetAntecedentes(idPaciente int) (models.Antecedentes, models.Respuesta)
 	UpsertAntecedentes(a models.Antecedentes) models.Respuesta
@@ -4779,4 +4784,50 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 	rp.Status = 200
 	rp.Mensaje = "Informe médico guardado con éxito"
 	return rp
+}
+
+// --- M�todos de Egresos ----------------------------------------------------------
+
+func (d *postDB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta) {
+	var list []models.Egreso
+	rows, err := d.db.Query(sqlGetEgresos, f.Desde, f.Hasta)
+	if err != nil {
+		return nil, models.Respuesta{Status: " error\, Msg: fmt.Sprintf(\error al obtener egresos: %v\, err)}
+ }
+ defer rows.Close()
+
+ for rows.Next() {
+ var e models.Egreso
+ err := rows.Scan(&e.ID, &e.Fecha, &e.Descripcion, &e.Monto, &e.Categoria, &e.MetodoPago, &e.Referencia, &e.UsuarioOperacion, &e.FechaOperacion)
+ if err != nil {
+ return nil, models.Respuesta{Status: \error\, Msg: fmt.Sprintf(\error al escanear egreso: %v\, err)}
+ }
+ list = append(list, e)
+ }
+
+ return list, models.Respuesta{Status: \ok\, Msg: \egresos obtenidos correctamente\}
+}
+
+func (d *postDB) PostEgreso(e models.Egreso) models.Respuesta {
+ err := d.db.QueryRow(sqlPostEgreso, e.Fecha, e.Descripcion, e.Monto, e.Categoria, e.MetodoPago, e.Referencia, e.UsuarioOperacion).Scan(&e.ID)
+ if err != nil {
+ return models.Respuesta{Status: \error\, Msg: fmt.Sprintf(\error al registrar egreso: %v\, err)}
+ }
+ return models.Respuesta{Status: \ok\, Msg: fmt.Sprintf(\egreso registrado con ID: %d\, e.ID)}
+}
+
+func (d *postDB) PutEgreso(e models.Egreso) models.Respuesta {
+ _, err := d.db.Exec(sqlUpdEgreso, e.ID, e.Fecha, e.Descripcion, e.Monto, e.Categoria, e.MetodoPago, e.Referencia, e.UsuarioOperacion)
+ if err != nil {
+ return models.Respuesta{Status: \error\, Msg: fmt.Sprintf(\error al actualizar egreso: %v\, err)}
+ }
+ return models.Respuesta{Status: \ok\, Msg: \egreso actualizado correctamente\}
+}
+
+func (d *postDB) DelEgreso(i models.Id) models.Respuesta {
+ _, err := d.db.Exec(sqlDelEgreso, i.ID)
+ if err != nil {
+ return models.Respuesta{Status: \error\, Msg: fmt.Sprintf(\error al eliminar egreso: %v\, err)}
+ }
+ return models.Respuesta{Status: \ok\, Msg: \egreso eliminado correctamente\}
 }
