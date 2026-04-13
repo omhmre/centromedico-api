@@ -4788,7 +4788,7 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 
 // ─── Métodos de Egresos ──────────────────────────────────────────────────────────
 
-func (d *postDB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta) {
+func (d *DB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta) {
 	var list []models.Egreso
 	rows, err := d.db.Query(sqlGetEgresos, f.Desde, f.Hasta)
 	if err != nil {
@@ -4808,7 +4808,7 @@ func (d *postDB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta)
 	return list, models.Respuesta{Status: "ok", Msg: "egresos obtenidos correctamente"}
 }
 
-func (d *postDB) PostEgreso(e models.Egreso) models.Respuesta {
+func (d *DB) PostEgreso(e models.Egreso) models.Respuesta {
 	err := d.db.QueryRow(sqlPostEgreso, e.Fecha, e.Descripcion, e.Monto, e.Categoria, e.MetodoPago, e.Referencia, e.UsuarioOperacion).Scan(&e.ID)
 	if err != nil {
 		return models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al registrar egreso: %v", err)}
@@ -4816,7 +4816,7 @@ func (d *postDB) PostEgreso(e models.Egreso) models.Respuesta {
 	return models.Respuesta{Status: "ok", Msg: fmt.Sprintf("egreso registrado con ID: %d", e.ID)}
 }
 
-func (d *postDB) PutEgreso(e models.Egreso) models.Respuesta {
+func (d *DB) PutEgreso(e models.Egreso) models.Respuesta {
 	_, err := d.db.Exec(sqlUpdEgreso, e.ID, e.Fecha, e.Descripcion, e.Monto, e.Categoria, e.MetodoPago, e.Referencia, e.UsuarioOperacion)
 	if err != nil {
 		return models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al actualizar egreso: %v", err)}
@@ -4824,7 +4824,7 @@ func (d *postDB) PutEgreso(e models.Egreso) models.Respuesta {
 	return models.Respuesta{Status: "ok", Msg: "egreso actualizado correctamente"}
 }
 
-func (d *postDB) DelEgreso(i models.Id) models.Respuesta {
+func (d *DB) DelEgreso(i models.Id) models.Respuesta {
 	_, err := d.db.Exec(sqlDelEgreso, i.ID)
 	if err != nil {
 		return models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al eliminar egreso: %v", err)}
