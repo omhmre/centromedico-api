@@ -4789,7 +4789,7 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 // ─── Métodos de Egresos ──────────────────────────────────────────────────────────
 
 func (d *DB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta) {
-	var list []models.Egreso
+	list := []models.Egreso{}
 	rows, err := d.db.Query(sqlGetEgresos, f.Desde, f.Hasta)
 	if err != nil {
 		return nil, models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al obtener egresos: %v", err)}
