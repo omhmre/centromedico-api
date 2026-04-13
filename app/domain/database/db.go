@@ -4792,7 +4792,7 @@ func (d *DB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta) {
 	var list []models.Egreso
 	rows, err := d.db.Query(sqlGetEgresos, f.Desde, f.Hasta)
 	if err != nil {
-		return nil, models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al obtener egresos: %v", err)}
+		return nil, models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al obtener egresos: %v", err)}
 	}
 	defer rows.Close()
 
@@ -4800,34 +4800,34 @@ func (d *DB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta) {
 		var e models.Egreso
 		err := rows.Scan(&e.ID, &e.Fecha, &e.Descripcion, &e.Monto, &e.Categoria, &e.MetodoPago, &e.Referencia, &e.UsuarioOperacion, &e.FechaOperacion)
 		if err != nil {
-			return nil, models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al escanear egreso: %v", err)}
+			return nil, models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al escanear egreso: %v", err)}
 		}
 		list = append(list, e)
 	}
 
-	return list, models.Respuesta{Status: "ok", Msg: "egresos obtenidos correctamente"}
+	return list, models.Respuesta{Status: 200, Mensaje: "egresos obtenidos correctamente"}
 }
 
 func (d *DB) PostEgreso(e models.Egreso) models.Respuesta {
 	err := d.db.QueryRow(sqlPostEgreso, e.Fecha, e.Descripcion, e.Monto, e.Categoria, e.MetodoPago, e.Referencia, e.UsuarioOperacion).Scan(&e.ID)
 	if err != nil {
-		return models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al registrar egreso: %v", err)}
+		return models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al registrar egreso: %v", err)}
 	}
-	return models.Respuesta{Status: "ok", Msg: fmt.Sprintf("egreso registrado con ID: %d", e.ID)}
+	return models.Respuesta{Status: 200, Mensaje: fmt.Sprintf("egreso registrado con ID: %d", e.ID)}
 }
 
 func (d *DB) PutEgreso(e models.Egreso) models.Respuesta {
 	_, err := d.db.Exec(sqlUpdEgreso, e.ID, e.Fecha, e.Descripcion, e.Monto, e.Categoria, e.MetodoPago, e.Referencia, e.UsuarioOperacion)
 	if err != nil {
-		return models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al actualizar egreso: %v", err)}
+		return models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al actualizar egreso: %v", err)}
 	}
-	return models.Respuesta{Status: "ok", Msg: "egreso actualizado correctamente"}
+	return models.Respuesta{Status: 200, Mensaje: "egreso actualizado correctamente"}
 }
 
 func (d *DB) DelEgreso(i models.Id) models.Respuesta {
-	_, err := d.db.Exec(sqlDelEgreso, i.ID)
+	_, err := d.db.Exec(sqlDelEgreso, i.Id)
 	if err != nil {
-		return models.Respuesta{Status: "error", Msg: fmt.Sprintf("error al eliminar egreso: %v", err)}
+		return models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al eliminar egreso: %v", err)}
 	}
-	return models.Respuesta{Status: "ok", Msg: "egreso eliminado correctamente"}
+	return models.Respuesta{Status: 200, Mensaje: "egreso eliminado correctamente"}
 }
