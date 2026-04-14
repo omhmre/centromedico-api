@@ -901,3 +901,11 @@ WHERE id=$1;`
 
 const sqlDelEgreso = `DELETE FROM medi001.egresos WHERE id=$1;`
 
+// ─── SQL de Configuración de Egresos ──────────────────────────────────────────
+
+const sqlGetConfigEgresos = `SELECT id, tipo, valor FROM medi001.config_egresos WHERE status = true ORDER BY tipo, valor;`
+
+const sqlPostConfigEgreso = `INSERT INTO medi001.config_egresos (tipo, valor) VALUES ($1, $2) RETURNING id;`
+
+const sqlDelConfigEgreso = `UPDATE medi001.config_egresos SET status = false WHERE id = $1;`
+

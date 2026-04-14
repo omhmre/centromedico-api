@@ -13,3 +13,9 @@ type Egreso struct {
 	UsuarioOperacion string    `json:"usuario_operacion"`
 	FechaOperacion   time.Time `json:"fecha_operacion"`
 }
+
+type ConfigEgreso struct {
+	ID    int    `json:"id"`
+	Tipo  string `json:"tipo"` // 'frecuente' o 'metodo'
+	Valor string `json:"valor"`
+}

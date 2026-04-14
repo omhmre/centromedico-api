@@ -286,6 +286,9 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/postegreso", a.PostEgreso())
 	a.Router.HandleFunc("/putegreso", a.PutEgreso())
 	a.Router.HandleFunc("/delegreso", a.DelEgreso())
+	a.Router.HandleFunc("/getegresosconfig", a.GetConfigEgresos())
+	a.Router.HandleFunc("/postegresoconfig", a.PostConfigEgreso())
+	a.Router.HandleFunc("/delegresoconfig", a.DelConfigEgreso())
 
 	// Inteligencia de Negocio (BI)
 	a.Router.HandleFunc("/bi/resumen", a.GetBIResumen())

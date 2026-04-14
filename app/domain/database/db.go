@@ -1,4 +1,4 @@
-package database
+﻿package database
 
 import (
 	"bytes"
@@ -146,7 +146,7 @@ type PostDB interface {
 	PostEgreso(e models.Egreso) models.Respuesta
 	PutEgreso(e models.Egreso) models.Respuesta
 	DelEgreso(i models.Id) models.Respuesta
-	// Historial Clínico
+	// Historial ClÃ­nico
 	GetAntecedentes(idPaciente int) (models.Antecedentes, models.Respuesta)
 	UpsertAntecedentes(a models.Antecedentes) models.Respuesta
 	GetSignosVitales(idPaciente int) ([]models.SignosVitales, models.Respuesta)
@@ -160,6 +160,10 @@ type PostDB interface {
 	GetBIRendimientoDoctor(desde, hasta string) ([]models.BIDoctor, models.Respuesta)
 	GetBIMetodosPago(desde, hasta string) ([]models.BIMetodoPago, models.Respuesta)
 	GetBIHeatmap(desde, hasta string) ([]models.BIHeatmapCell, models.Respuesta)
+	// Configuración de Egresos
+	GetConfigEgresos() ([]models.ConfigEgreso, models.Respuesta)
+	PostConfigEgreso(c models.ConfigEgreso) models.Respuesta
+	DelConfigEgreso(i models.Id) models.Respuesta
 }
 
 type DB struct {
@@ -265,7 +269,7 @@ func (d *DB) PostPayments(p []models.Payments) models.Respuesta {
 			return rp
 		}
 
-		// Sincronizar el campo pagado de la cita para reportes rápidos
+		// Sincronizar el campo pagado de la cita para reportes rÃ¡pidos
 		const sqlUpdateCitaPagado = `UPDATE medi001.citas SET pagado = pagado + $1 WHERE id = $2`
 		_, errUpd := d.db.Exec(sqlUpdateCitaPagado, e.Amount, e.Appointmentid)
 		if errUpd != nil {
@@ -399,7 +403,7 @@ func (d *DB) UpdPacienteMatricula(i models.PacientesModel) models.Respuesta {
 	resp, err := d.db.Exec(sqlUpdPacienteMatricula, i.Id, i.Matricula)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "No se pudo Actualizar la Matrícula del Paciente. " + err.Error()
+		rp.Mensaje = "No se pudo Actualizar la MatrÃ­cula del Paciente. " + err.Error()
 		utils.CreateLog(err.Error())
 		return rp
 	}
@@ -408,12 +412,12 @@ func (d *DB) UpdPacienteMatricula(i models.PacientesModel) models.Respuesta {
 		rp.Status = 502
 		rp.Mensaje = err1.Error()
 	} else if datos > 0 {
-		rp.Mensaje = "Matrícula del Paciente Actualizada Correctamente"
+		rp.Mensaje = "MatrÃ­cula del Paciente Actualizada Correctamente"
 		rp.Status = 200
 		utils.CreateLog(rp.Mensaje)
 	} else {
 		rp.Status = 404 // Not Found
-		rp.Mensaje = "No se encontró ningún paciente con el ID proporcionado."
+		rp.Mensaje = "No se encontrÃ³ ningÃºn paciente con el ID proporcionado."
 	}
 	return rp
 }
@@ -437,7 +441,7 @@ func (d *DB) UpdPacienteStatus(i models.PacientesModel) models.Respuesta {
 		utils.CreateLog(rp.Mensaje)
 	} else {
 		rp.Status = 404 // Not Found
-		rp.Mensaje = "No se encontró ningún paciente con el ID proporcionado."
+		rp.Mensaje = "No se encontrÃ³ ningÃºn paciente con el ID proporcionado."
 	}
 	return rp
 }
@@ -447,31 +451,31 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 
 	i.CreatedAt = time.Now()
 
-	// Iniciar transacción para garantizar la atomicidad de la operación (insertar y luego actualizar si es necesario).
+	// Iniciar transacciÃ³n para garantizar la atomicidad de la operaciÃ³n (insertar y luego actualizar si es necesario).
 	tx, err := d.db.Begin()
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al iniciar la transacción: " + err.Error()
+		rp.Mensaje = "Error al iniciar la transacciÃ³n: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
 
 	var newID int
-	// La consulta de inserción devuelve el nuevo ID. Usamos QueryRow para capturarlo.
+	// La consulta de inserciÃ³n devuelve el nuevo ID. Usamos QueryRow para capturarlo.
 	err = tx.QueryRow(sqlPostPaciente, i.Cedula, i.Nombres, i.Fenac, i.Matricula, i.Status, i.Representante, i.Whatsapp,
 		i.Direccion, i.Correo, i.Diagnostico, i.CXC, i.CreatedAt).Scan(&newID)
 
 	if err != nil {
-		tx.Rollback() // Revertir la transacción en caso de error
+		tx.Rollback() // Revertir la transacciÃ³n en caso de error
 		rp.Status = 501
 		rp.Mensaje = "No se pudo Agregar la Informacion del Paciente. " + err.Error()
 		utils.CreateLog("No se pudo Agregar la Informacion del Paciente. " + err.Error())
 		return rp
 	}
 
-	// Si la cédula viene vacía, la actualizamos con el ID recién generado.
+	// Si la cÃ©dula viene vacÃ­a, la actualizamos con el ID reciÃ©n generado.
 	// Se verifica que el puntero no sea nulo antes de desreferenciarlo.
-	// Si es nulo o si la cadena está vacía, se actualiza.
+	// Si es nulo o si la cadena estÃ¡ vacÃ­a, se actualiza.
 	updateCedula := false
 	if i.Cedula == nil || (i.Cedula != nil && *i.Cedula == "") {
 		updateCedula = true
@@ -480,18 +484,18 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 		newCedula := strconv.Itoa(newID)
 		_, errUpdate := tx.Exec("UPDATE medi001.pacientes SET cedula = $1 WHERE id = $2", newCedula, newID)
 		if errUpdate != nil {
-			tx.Rollback() // Revertir si la actualización falla
+			tx.Rollback() // Revertir si la actualizaciÃ³n falla
 			rp.Status = 500
-			rp.Mensaje = "Error al actualizar la cédula del paciente: " + errUpdate.Error()
+			rp.Mensaje = "Error al actualizar la cÃ©dula del paciente: " + errUpdate.Error()
 			utils.CreateLog(rp.Mensaje)
 			return rp
 		}
 	}
 
-	// Si todo fue bien, confirmar la transacción.
+	// Si todo fue bien, confirmar la transacciÃ³n.
 	if err := tx.Commit(); err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al confirmar la transacción: " + err.Error()
+		rp.Mensaje = "Error al confirmar la transacciÃ³n: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
@@ -572,7 +576,7 @@ func (d *DB) UpsertPrecioEspecialidad(p models.PrecioEspecialidad) models.Respue
 		rp.Mensaje = "Precio por especialidad guardado correctamente."
 	} else {
 		// En un UPSERT, si no hay cambios, RowsAffected puede ser 0.
-		// Esto no es necesariamente un error, significa que el registro ya existía con el mismo precio.
+		// Esto no es necesariamente un error, significa que el registro ya existÃ­a con el mismo precio.
 		rp.Status = 200
 		rp.Mensaje = "El precio por especialidad no ha cambiado."
 	}
@@ -606,7 +610,7 @@ func (d *DB) DelPrecioEspecialidad(p models.PrecioEspecialidad) models.Respuesta
 		rp.Mensaje = "Precio por especialidad eliminado correctamente."
 	} else {
 		rp.Status = 404 // Not Found
-		rp.Mensaje = "No se encontró el precio por especialidad para eliminar."
+		rp.Mensaje = "No se encontrÃ³ el precio por especialidad para eliminar."
 	}
 	return rp
 }
@@ -796,7 +800,7 @@ func (d *DB) GetEmailConfig() (models.EmailConfig, models.Respuesta) {
 	var rp models.Respuesta
 	var emailConfig models.EmailConfig
 
-	// Usamos QueryRow porque solo esperamos una configuración (o ninguna).
+	// Usamos QueryRow porque solo esperamos una configuraciÃ³n (o ninguna).
 	// Agregamos LIMIT 1 para asegurarnos de que solo se devuelva una fila.
 	row := d.db.QueryRow(sqlGetEmailConfig + " LIMIT 1")
 
@@ -812,16 +816,16 @@ func (d *DB) GetEmailConfig() (models.EmailConfig, models.Respuesta) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			rp.Status = 200
-			rp.Mensaje = "No se encontró configuración de email, se devolverá un objeto vacío."
+			rp.Mensaje = "No se encontrÃ³ configuraciÃ³n de email, se devolverÃ¡ un objeto vacÃ­o."
 			return models.EmailConfig{}, rp
 		}
 		rp.Status = 500
-		rp.Mensaje = "Error al consultar la configuración de email: " + err.Error()
+		rp.Mensaje = "Error al consultar la configuraciÃ³n de email: " + err.Error()
 		return models.EmailConfig{}, rp
 	}
 
 	rp.Status = 200
-	rp.Mensaje = "Configuración de email obtenida correctamente."
+	rp.Mensaje = "ConfiguraciÃ³n de email obtenida correctamente."
 	return emailConfig, rp
 }
 
@@ -830,7 +834,7 @@ func (d *DB) AddEmailConfig(i models.EmailConfig) models.Respuesta {
 	resp, err := d.db.Exec(sqlAddEmailConfig, i.Smtp, i.Puerto, i.Usuario, i.Clave, i.Tls)
 	if err != nil {
 		rp.Status = 501
-		rp.Mensaje = "No se pudo Agregar la Informacion de Configuración de Correo. " + err.Error()
+		rp.Mensaje = "No se pudo Agregar la Informacion de ConfiguraciÃ³n de Correo. " + err.Error()
 		return rp
 	}
 	datos, err1 := resp.RowsAffected()
@@ -839,10 +843,10 @@ func (d *DB) AddEmailConfig(i models.EmailConfig) models.Respuesta {
 		rp.Mensaje = err1.Error()
 	} else if datos > 0 {
 		rp.Status = 200
-		rp.Mensaje = strconv.FormatInt(datos, 10) + " Configuración de Correo Agregada Correctamente"
+		rp.Mensaje = strconv.FormatInt(datos, 10) + " ConfiguraciÃ³n de Correo Agregada Correctamente"
 	} else {
 		rp.Status = 201
-		rp.Mensaje = "No se agregó la configuración!"
+		rp.Mensaje = "No se agregÃ³ la configuraciÃ³n!"
 	}
 	return rp
 }
@@ -852,7 +856,7 @@ func (d *DB) DelEmailConfig(i models.Id) models.Respuesta {
 	resp, err := d.db.Exec(sqlDelEmailConfig, i.Id)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "No se pudo Eliminar la Configuración de Correo. " + err.Error()
+		rp.Mensaje = "No se pudo Eliminar la ConfiguraciÃ³n de Correo. " + err.Error()
 		return rp
 	}
 	datos, err1 := resp.RowsAffected()
@@ -867,22 +871,22 @@ func (d *DB) DelEmailConfig(i models.Id) models.Respuesta {
 }
 
 func (d *DB) SendMail(f models.MailSend) error {
-	// Si RESEND_API_KEY está configurado, usamos la API de Resend (evita bloqueo de puertos en Render Free Tier)
+	// Si RESEND_API_KEY estÃ¡ configurado, usamos la API de Resend (evita bloqueo de puertos en Render Free Tier)
 	if RESEND_API_KEY != "" {
 		return d.SendMailAPI(f)
 	}
 
-	// 1. Obtener la configuración de email de forma segura.
+	// 1. Obtener la configuraciÃ³n de email de forma segura.
 	config, resp := d.GetEmailConfig()
 	if resp.Status >= 400 {
 		// Si hubo un error de DB, resp.Mensaje ya tiene los detalles.
 		utils.CreateLog("SendMail: " + resp.Mensaje)
-		return fmt.Errorf("no se pudo obtener la configuración de email: %s", resp.Mensaje)
+		return fmt.Errorf("no se pudo obtener la configuraciÃ³n de email: %s", resp.Mensaje)
 	}
 
-	// 2. Validar que la configuración no esté vacía.
+	// 2. Validar que la configuraciÃ³n no estÃ© vacÃ­a.
 	if config.Smtp == "" {
-		msg := "SendMail: La configuración de email no está definida en la base de datos."
+		msg := "SendMail: La configuraciÃ³n de email no estÃ¡ definida en la base de datos."
 		utils.CreateLog(msg)
 		return fmt.Errorf(msg)
 	}
@@ -908,28 +912,28 @@ func (d *DB) SendMail(f models.MailSend) error {
 	dialer := mail.NewDialer(config.Smtp, config.Puerto, config.Usuario, config.Clave)
 
 	// 5. Configurar TLS/SSL de forma inteligente.
-	// El puerto 465 es típicamente para SSL/TLS implícito (SMTPS).
-	// El puerto 587 es para STARTTLS explícito.
-	// Priorizamos el puerto si es estándar, de lo contrario usamos el flag de la DB.
+	// El puerto 465 es tÃ­picamente para SSL/TLS implÃ­cito (SMTPS).
+	// El puerto 587 es para STARTTLS explÃ­cito.
+	// Priorizamos el puerto si es estÃ¡ndar, de lo contrario usamos el flag de la DB.
 	if config.Puerto == 465 {
 		dialer.SSL = true
 	} else if config.Puerto == 587 {
-		dialer.SSL = false // STARTTLS es manejado automáticamente por la librería
+		dialer.SSL = false // STARTTLS es manejado automÃ¡ticamente por la librerÃ­a
 	} else {
 		dialer.SSL = config.Tls
 	}
 
-	// Configuración de TLS con InsecureSkipVerify dinámica.
+	// ConfiguraciÃ³n de TLS con InsecureSkipVerify dinÃ¡mica.
 	dialer.TLSConfig = &tls.Config{
 		ServerName:         config.Smtp,
 		InsecureSkipVerify: EMAIL_INSECURE_SKIP_VERIFY,
 	}
 
-	utils.CreateLog(fmt.Sprintf("SendMail: Intentando enviar correo a %s vía %s:%d (SSL: %v, Insecure: %v)", f.To, config.Smtp, config.Puerto, dialer.SSL, EMAIL_INSECURE_SKIP_VERIFY))
+	utils.CreateLog(fmt.Sprintf("SendMail: Intentando enviar correo a %s vÃ­a %s:%d (SSL: %v, Insecure: %v)", f.To, config.Smtp, config.Puerto, dialer.SSL, EMAIL_INSECURE_SKIP_VERIFY))
 
 	// 6. Enviar el correo.
 	if err := dialer.DialAndSend(m); err != nil {
-		msg := fmt.Sprintf("SendMail: Error al enviar correo a %s a través de %s:%d. Error: %v", f.To, config.Smtp, config.Puerto, err)
+		msg := fmt.Sprintf("SendMail: Error al enviar correo a %s a travÃ©s de %s:%d. Error: %v", f.To, config.Smtp, config.Puerto, err)
 		utils.CreateLog(msg)
 		return fmt.Errorf("error al enviar correo: %w", err)
 	}
@@ -938,12 +942,12 @@ func (d *DB) SendMail(f models.MailSend) error {
 	return nil
 }
 
-// SendMailAPI envía correos usando la API HTTP de Resend.com
+// SendMailAPI envÃ­a correos usando la API HTTP de Resend.com
 // Esto es ideal para evadir el bloqueo de puertos SMTP (25, 465, 587) en Render.com Free Tier.
 func (d *DB) SendMailAPI(f models.MailSend) error {
 	url := "https://api.resend.com/emails"
 
-	// Estructura para la petición a Resend
+	// Estructura para la peticiÃ³n a Resend
 	payload := map[string]interface{}{
 		"from":    RESEND_FROM,
 		"to":      []string{f.To},
@@ -958,7 +962,7 @@ func (d *DB) SendMailAPI(f models.MailSend) error {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return fmt.Errorf("error al crear petición a Resend: %w", err)
+		return fmt.Errorf("error al crear peticiÃ³n a Resend: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+RESEND_API_KEY)
@@ -967,7 +971,7 @@ func (d *DB) SendMailAPI(f models.MailSend) error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		utils.CreateLog(fmt.Sprintf("SendMailAPI: Error de conexión con Resend: %v", err))
+		utils.CreateLog(fmt.Sprintf("SendMailAPI: Error de conexiÃ³n con Resend: %v", err))
 		return fmt.Errorf("error al conectar con la API de Resend: %w", err)
 	}
 	defer resp.Body.Close()
@@ -975,7 +979,7 @@ func (d *DB) SendMailAPI(f models.MailSend) error {
 	if resp.StatusCode >= 400 {
 		var errorResp map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&errorResp)
-		msg := fmt.Sprintf("SendMailAPI: Resend devolvió error %d: %v", resp.StatusCode, errorResp)
+		msg := fmt.Sprintf("SendMailAPI: Resend devolviÃ³ error %d: %v", resp.StatusCode, errorResp)
 		utils.CreateLog(msg)
 		return fmt.Errorf("error de la API de Resend: %d", resp.StatusCode)
 	}
@@ -1070,9 +1074,9 @@ func (d *DB) Open() error {
 	}
 	utils.CreateLog("Conectado a la base de datos " + DB_NAME)
 	d.db = pg
-	d.Conn = pg // Asignar la conexión también al campo 'Conn'
+	d.Conn = pg // Asignar la conexiÃ³n tambiÃ©n al campo 'Conn'
 
-	// Ejecutar migraciones automáticas
+	// Ejecutar migraciones automÃ¡ticas
 	d.CheckAndMigrate()
 
 	return nil
@@ -1083,8 +1087,8 @@ func (d *DB) CheckAndMigrate() {
 	sqlFile := "./app/domain/database/medical_history_tables.sql"
 	content, err := os.ReadFile(sqlFile)
 	if err != nil {
-		utils.CreateLog("No se pudo leer el archivo de migración: " + err.Error())
-		// Intentar con ruta alternativa si falla (dependiendo de dónde se ejecute)
+		utils.CreateLog("No se pudo leer el archivo de migraciÃ³n: " + err.Error())
+		// Intentar con ruta alternativa si falla (dependiendo de dÃ³nde se ejecute)
 		content, err = os.ReadFile("app/domain/database/medical_history_tables.sql")
 		if err != nil {
 			return
@@ -1093,9 +1097,9 @@ func (d *DB) CheckAndMigrate() {
 
 	_, err = d.db.Exec(string(content))
 	if err != nil {
-		utils.CreateLog("Error al ejecutar migración: " + err.Error())
+		utils.CreateLog("Error al ejecutar migraciÃ³n: " + err.Error())
 	} else {
-		utils.CreateLog("Migración de tablas de historial médico completada exitosamente")
+		utils.CreateLog("MigraciÃ³n de tablas de historial mÃ©dico completada exitosamente")
 	}
 }
 
@@ -1429,8 +1433,8 @@ func (d *DB) DelInventario(i models.Inventario) models.Respuesta {
 		rp.Mensaje = strconv.FormatInt(datos, 10) + " Registro Eliminado Correctamente"
 		rp.Status = 200
 	} else {
-		rp.Status = 201 // No se encontró el registro
-		rp.Mensaje = "No se encontró el paciente para eliminar."
+		rp.Status = 201 // No se encontrÃ³ el registro
+		rp.Mensaje = "No se encontrÃ³ el paciente para eliminar."
 	}
 	return rp
 }
@@ -3821,10 +3825,10 @@ func (d *DB) GetCompras() ([]models.Compra, models.Respuesta) {
 func (d *DB) AddCompra(c models.Compra) models.Respuesta {
 	var rp models.Respuesta
 
-	// Verificar si el usuario está autenticado
+	// Verificar si el usuario estÃ¡ autenticado
 	// if idsesion == "*" {
 	//     rp.Status = 401
-	//     rp.Mensaje = "Credenciales no válidas, debe iniciar sesión!"
+	//     rp.Mensaje = "Credenciales no vÃ¡lidas, debe iniciar sesiÃ³n!"
 	//     return rp
 	// }
 
@@ -3929,7 +3933,7 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 	tx, err := d.db.Begin()
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al iniciar la transacción: " + err.Error()
+		rp.Mensaje = "Error al iniciar la transacciÃ³n: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
@@ -3937,7 +3941,7 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 	totalCitasAgregadas := 0
 	// Por cada cita "base" que se recibe, se genera una serie recurrente.
 	for _, citaBase := range citas {
-		// Generar la serie para 1 año.
+		// Generar la serie para 1 aÃ±o.
 		// newUUID := uuid.New().String()
 		// groupID := &newUUID
 
@@ -3975,7 +3979,7 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 
 	if err := tx.Commit(); err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al confirmar la transacción: " + err.Error()
+		rp.Mensaje = "Error al confirmar la transacciÃ³n: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
@@ -3988,7 +3992,7 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 	var rp models.Respuesta
 
-	// Si se solicita actualizar la serie y existe un GroupID válido
+	// Si se solicita actualizar la serie y existe un GroupID vÃ¡lido
 	if cita.UpdateSeries && cita.GroupID != nil && *cita.GroupID != "" {
 		// 1. Obtener la cita original para calcular el desplazamiento de tiempo (si hubo cambio de hora)
 		var oldInicio time.Time
@@ -4049,17 +4053,17 @@ func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 func (d *DB) UpdateDiagnosticoCita(cita models.CitaModel) models.Respuesta {
 	var rp models.Respuesta
 
-	// Asegúrate de tener definida la constante sqlUpdDiagnostico con tu consulta SQL
+	// AsegÃºrate de tener definida la constante sqlUpdDiagnostico con tu consulta SQL
 	_, err := d.db.Exec(sqlUpdDiagnostico, cita.Diagnostico, cita.Id)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al actualizar diagnóstico: " + err.Error()
-		utils.CreateLog("Error al actualizar diagnóstico: " + err.Error())
+		rp.Mensaje = "Error al actualizar diagnÃ³stico: " + err.Error()
+		utils.CreateLog("Error al actualizar diagnÃ³stico: " + err.Error())
 		return rp
 	}
 
 	rp.Status = 200
-	rp.Mensaje = "Diagnóstico actualizado correctamente"
+	rp.Mensaje = "DiagnÃ³stico actualizado correctamente"
 	return rp
 }
 
@@ -4150,7 +4154,7 @@ func (d *DB) GetInformesMedicos(idPaciente int) ([]models.InformeMedico, models.
 	rows, err := d.db.Query(sqlGetInformesPorPaciente, idPaciente)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al obtener informes médicos: " + err.Error()
+		rp.Mensaje = "Error al obtener informes mÃ©dicos: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return nil, rp
 	}
@@ -4173,7 +4177,7 @@ func (d *DB) GetInformesMedicos(idPaciente int) ([]models.InformeMedico, models.
 		)
 		if err != nil {
 			rp.Status = 500
-			rp.Mensaje = "Error al escanear informe médico: " + err.Error()
+			rp.Mensaje = "Error al escanear informe mÃ©dico: " + err.Error()
 			utils.CreateLog(rp.Mensaje)
 			return nil, rp
 		}
@@ -4183,7 +4187,7 @@ func (d *DB) GetInformesMedicos(idPaciente int) ([]models.InformeMedico, models.
 		informes = append(informes, informe)
 	}
 	rp.Status = 200
-	rp.Mensaje = "Informes médicos obtenidos correctamente"
+	rp.Mensaje = "Informes mÃ©dicos obtenidos correctamente"
 	return informes, rp
 }
 
@@ -4206,7 +4210,7 @@ func (d *DB) GetInformeMedico(id int) (models.InformeMedico, models.Respuesta) {
 	)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al obtener informe médico: " + err.Error()
+		rp.Mensaje = "Error al obtener informe mÃ©dico: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return informe, rp
 	}
@@ -4214,7 +4218,7 @@ func (d *DB) GetInformeMedico(id int) (models.InformeMedico, models.Respuesta) {
 		informe.IdCita = int(idCita.Int64)
 	}
 	rp.Status = 200
-	rp.Mensaje = "Informe médico obtenido correctamente"
+	rp.Mensaje = "Informe mÃ©dico obtenido correctamente"
 	return informe, rp
 }
 
@@ -4233,12 +4237,12 @@ func (d *DB) AddInformeMedico(i models.InformeMedico) models.Respuesta {
 	err := d.db.QueryRow(sqlAddInforme, i.IdPaciente, i.Fecha, i.IdDoctor, idCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones).Scan(&newID)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al agregar informe médico: " + err.Error()
+		rp.Mensaje = "Error al agregar informe mÃ©dico: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
 	rp.Status = 200
-	rp.Mensaje = "Informe médico agregado correctamente con ID: " + strconv.Itoa(newID)
+	rp.Mensaje = "Informe mÃ©dico agregado correctamente con ID: " + strconv.Itoa(newID)
 	return rp
 }
 
@@ -4256,7 +4260,7 @@ func (d *DB) UpdInformeMedico(i models.InformeMedico) models.Respuesta {
 	res, err := d.db.Exec(sqlUpdInforme, i.Fecha, i.IdDoctor, idCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones, i.Id)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al actualizar informe médico: " + err.Error()
+		rp.Mensaje = "Error al actualizar informe mÃ©dico: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
@@ -4264,10 +4268,10 @@ func (d *DB) UpdInformeMedico(i models.InformeMedico) models.Respuesta {
 	rows, _ := res.RowsAffected()
 	if rows > 0 {
 		rp.Status = 200
-		rp.Mensaje = "Informe médico actualizado correctamente"
+		rp.Mensaje = "Informe mÃ©dico actualizado correctamente"
 	} else {
 		rp.Status = 404
-		rp.Mensaje = "No se encontró el informe médico para actualizar"
+		rp.Mensaje = "No se encontrÃ³ el informe mÃ©dico para actualizar"
 	}
 	return rp
 }
@@ -4279,17 +4283,17 @@ func (d *DB) DelInformeMedico(id int) models.Respuesta {
 	res, err := d.db.Exec(sqlDelInforme, id)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al eliminar informe médico: " + err.Error()
+		rp.Mensaje = "Error al eliminar informe mÃ©dico: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
 	rows, _ := res.RowsAffected()
 	if rows > 0 {
 		rp.Status = 200
-		rp.Mensaje = "Informe médico eliminado correctamente"
+		rp.Mensaje = "Informe mÃ©dico eliminado correctamente"
 	} else {
 		rp.Status = 404
-		rp.Mensaje = "No se encontró el informe médico para eliminar"
+		rp.Mensaje = "No se encontrÃ³ el informe mÃ©dico para eliminar"
 	}
 	return rp
 }
@@ -4426,16 +4430,16 @@ func (d *DB) DelCita(e models.IdCitas) models.Respuesta {
 				return rp
 			}
 			rp.Status = 500
-			rp.Mensaje = "Error al obtener información de la cita: " + queryRowErr.Error()
+			rp.Mensaje = "Error al obtener informaciÃ³n de la cita: " + queryRowErr.Error()
 			utils.CreateLog(rp.Mensaje)
 			return rp
 		}
 
-		if targetGroupID.Valid { // Si la cita tiene un group_id válido, es parte de una serie
+		if targetGroupID.Valid { // Si la cita tiene un group_id vÃ¡lido, es parte de una serie
 			// Eliminar todas las citas en la serie desde la fecha de inicio de la cita objetivo en adelante
-			// sqlDelCitaAll ya está diseñado para usar $1 para obtener group_id e inicio.
+			// sqlDelCitaAll ya estÃ¡ diseÃ±ado para usar $1 para obtener group_id e inicio.
 			resp, execErr = d.db.Exec(sqlDelCitaAll, e.Id)
-		} else { // Es una cita única (group_id es NULL), aunque se pidió eliminar la serie
+		} else { // Es una cita Ãºnica (group_id es NULL), aunque se pidiÃ³ eliminar la serie
 			// En este caso, "eliminar todas las posteriores" significa solo eliminar esta,
 			// ya que no hay una serie a la que pertenezca.
 			resp, execErr = d.db.Exec(sqlDelCita, e.Id)
@@ -4486,7 +4490,7 @@ func (d *DB) DelPayment(e models.Id) models.Respuesta {
 			utils.CreateLog("Error al revertir saldo pagado en cita: " + errReversa.Error())
 		}
 	} else {
-		utils.CreateLog("DelPayment: No se encontró el registro previo para reversar saldo en cita")
+		utils.CreateLog("DelPayment: No se encontrÃ³ el registro previo para reversar saldo en cita")
 	}
 	datos, err1 := resp.RowsAffected()
 	if err1 != nil {
@@ -4564,7 +4568,7 @@ func (d *DB) UpdateUnpaidAppointmentsVESRate(newRate float64) models.Respuesta {
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al obtener filas afectadas después de la actualización: " + err.Error()
+		rp.Mensaje = "Error al obtener filas afectadas despuÃ©s de la actualizaciÃ³n: " + err.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
@@ -4655,7 +4659,7 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 	return citas, rp
 }
 
-// --- Implementación Historial Clínico ---
+// --- ImplementaciÃ³n Historial ClÃ­nico ---
 
 func (d *DB) GetAntecedentes(idPaciente int) (models.Antecedentes, models.Respuesta) {
 	var a models.Antecedentes
@@ -4720,7 +4724,7 @@ func (d *DB) PostSignosVitales(v models.SignosVitales) models.Respuesta {
 		return rp
 	}
 	rp.Status = 200
-	rp.Mensaje = "Signos vitales guardados con éxito"
+	rp.Mensaje = "Signos vitales guardados con Ã©xito"
 	return rp
 }
 
@@ -4730,7 +4734,7 @@ func (d *DB) GetMedicalHistoryTimeline(idPaciente int) ([]models.HistoryTimeline
 	rows, err := d.db.Query(sqlGetMedicalHistoryTimeline, idPaciente)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al obtener línea de tiempo: " + err.Error()
+		rp.Mensaje = "Error al obtener lÃ­nea de tiempo: " + err.Error()
 		return nil, rp
 	}
 	defer rows.Close()
@@ -4756,7 +4760,7 @@ func (d *DB) GetPatientMedicalInsights(idPaciente int) (map[string]interface{}, 
 	d.db.QueryRow(`SELECT COALESCE(AVG(imc), 0.0) FROM medi001.paciente_signos_vitales WHERE id_paciente = $1`, idPaciente).Scan(&avgImc)
 	insights["avg_imc"] = avgImc
 
-	// 2. Diagnóstico más frecuente
+	// 2. DiagnÃ³stico mÃ¡s frecuente
 	var commonDiagnosis sql.NullString
 	d.db.QueryRow(`SELECT diagnostico FROM medi001.informe_medico WHERE id_paciente = $1 GROUP BY diagnostico ORDER BY COUNT(*) DESC LIMIT 1`, idPaciente).Scan(&commonDiagnosis)
 	if commonDiagnosis.Valid {
@@ -4778,15 +4782,15 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 	err := d.db.QueryRow(sqlPostInformeMedico, i.IdPaciente, i.IdDoctor, i.IdCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones, i.UsuarioOperacion).Scan(&i.Id)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al guardar informe médico: " + err.Error()
+		rp.Mensaje = "Error al guardar informe mÃ©dico: " + err.Error()
 		return rp
 	}
 	rp.Status = 200
-	rp.Mensaje = "Informe médico guardado con éxito"
+	rp.Mensaje = "Informe mÃ©dico guardado con Ã©xito"
 	return rp
 }
 
-// ─── Métodos de Egresos ──────────────────────────────────────────────────────────
+// â”€â”€â”€ MÃ©todos de Egresos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 func (d *DB) GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta) {
 	list := []models.Egreso{}
@@ -4830,4 +4834,42 @@ func (d *DB) DelEgreso(i models.Id) models.Respuesta {
 		return models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al eliminar egreso: %v", err)}
 	}
 	return models.Respuesta{Status: 200, Mensaje: "egreso eliminado correctamente"}
+}
+
+// â”€â”€â”€ MÃ©todos de ConfiguraciÃ³n de Egresos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+func (d *DB) GetConfigEgresos() ([]models.ConfigEgreso, models.Respuesta) {
+	list := []models.ConfigEgreso{}
+	rows, err := d.db.Query(sqlGetConfigEgresos)
+	if err != nil {
+		return nil, models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al obtener configuraciÃ³n de egresos: %v", err)}
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var c models.ConfigEgreso
+		err := rows.Scan(&c.ID, &c.Tipo, &c.Valor)
+		if err != nil {
+			return nil, models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al escanear configuraciÃ³n: %v", err)}
+		}
+		list = append(list, c)
+	}
+
+	return list, models.Respuesta{Status: 200, Mensaje: "configuraciÃ³n obtenida correctamente"}
+}
+
+func (d *DB) PostConfigEgreso(c models.ConfigEgreso) models.Respuesta {
+	err := d.db.QueryRow(sqlPostConfigEgreso, c.Tipo, c.Valor).Scan(&c.ID)
+	if err != nil {
+		return models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al registrar opciÃ³n de configuraciÃ³n: %v", err)}
+	}
+	return models.Respuesta{Status: 200, Mensaje: fmt.Sprintf("opciÃ³n registrada con ID: %d", c.ID)}
+}
+
+func (d *DB) DelConfigEgreso(i models.Id) models.Respuesta {
+	_, err := d.db.Exec(sqlDelConfigEgreso, i.Id)
+	if err != nil {
+		return models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al desactivar opciÃ³n: %v", err)}
+	}
+	return models.Respuesta{Status: 200, Mensaje: "opciÃ³n desactivada correctamente"}
 }
