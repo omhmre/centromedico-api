@@ -297,4 +297,16 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/bi/doctores", a.GetBIDoctores())
 	a.Router.HandleFunc("/bi/pagos", a.GetBIPagos())
 	a.Router.HandleFunc("/bi/heatmap", a.GetBIHeatmap())
+
+	// Personal
+	a.Router.HandleFunc("/getpersonal", a.GetPersonal())
+	a.Router.HandleFunc("/postpersonal", a.PostPersonal())
+	a.Router.HandleFunc("/putpersonal", a.UpdPersonal())
+	a.Router.HandleFunc("/delpersonal", a.DelPersonal())
+
+	// Nómina
+	a.Router.HandleFunc("/getnominas", a.GetNominas())
+	a.Router.HandleFunc("/postnomina", a.PostNomina())
+	a.Router.HandleFunc("/paynomina", a.PayNomina())
+	a.Router.HandleFunc("/delnomina", a.DelNomina())
 }

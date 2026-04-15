@@ -909,3 +909,27 @@ const sqlPostConfigEgreso = `INSERT INTO medi001.config_egresos (tipo, valor) VA
 
 const sqlDelConfigEgreso = `UPDATE medi001.config_egresos SET status = false WHERE id = $1;`
 
+const sqlGetPersonal = `SELECT id, nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, status, created_at FROM medi001.personal ORDER BY nombre;`
+
+const sqlPostPersonal = `INSERT INTO medi001.personal (nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, status) 
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
+
+const sqlUpdPersonal = `UPDATE medi001.personal SET nombre=$2, cedula=$3, telefono=$4, correo=$5, direccion=$6, titulo=$7, universidad=$8, fecha_ingreso=$9, fecha_nacimiento=$10, cargo=$11, sueldo=$12, status=$13 WHERE id=$1;`
+
+const sqlDelPersonal = `DELETE FROM medi001.personal WHERE id = $1;`
+
+// ─── SQL de Nóminas ──────────────────────────────────────────────────────────
+
+const sqlGetNominas = `SELECT n.id, n.personal_id, p.nombre, n.fecha_inicio, n.fecha_fin, n.tipo_periodo, 
+n.monto_base, n.bonificaciones, n.deducciones, n.monto_total, n.status, n.fecha_pago, COALESCE(n.egreso_id, 0), n.notas, n.created_at 
+FROM medi001.nominas n 
+JOIN medi001.personal p ON n.personal_id = p.id 
+WHERE n.fecha_inicio >= $1 AND n.fecha_fin <= $2 
+ORDER BY n.fecha_pago DESC, p.nombre;`
+
+const sqlPostNomina = `INSERT INTO medi001.nominas (personal_id, fecha_inicio, fecha_fin, tipo_periodo, monto_base, bonificaciones, deducciones, monto_total, status, notas) 
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id;`
+
+const sqlUpdNominaStatus = `UPDATE medi001.nominas SET status=$2, fecha_pago=$3, egreso_id=$4, updated_at=NOW() WHERE id=$1;`
+
+const sqlDelNomina = `DELETE FROM medi001.nominas WHERE id=$1 AND status='Pendiente';`

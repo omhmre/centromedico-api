@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"bytes"
@@ -164,6 +164,16 @@ type PostDB interface {
 	GetConfigEgresos() ([]models.ConfigEgreso, models.Respuesta)
 	PostConfigEgreso(c models.ConfigEgreso) models.Respuesta
 	DelConfigEgreso(i models.Id) models.Respuesta
+	// Personal
+	GetPersonal() ([]models.PersonalModel, models.Respuesta)
+	PostPersonal(p models.PersonalModel) models.Respuesta
+	UpdPersonal(p models.PersonalModel) models.Respuesta
+	DelPersonal(i models.Id) models.Respuesta
+	// Nómina
+	GetNominas(desde, hasta string) ([]models.NominaModel, models.Respuesta)
+	PostNomina(n models.NominaModel) models.Respuesta
+	PayNomina(nominaID int, fechaPago string, metodoPago string, usuarioOperacion string) models.Respuesta
+	DelNomina(i models.Id) models.Respuesta
 }
 
 type DB struct {
@@ -4872,4 +4882,279 @@ func (d *DB) DelConfigEgreso(i models.Id) models.Respuesta {
 		return models.Respuesta{Status: 500, Mensaje: fmt.Sprintf("error al desactivar opciÃ³n: %v", err)}
 	}
 	return models.Respuesta{Status: 200, Mensaje: "opciÃ³n desactivada correctamente"}
+}
+
+func (d *DB) GetPersonal() ([]models.PersonalModel, models.Respuesta) {
+	var rp models.Respuesta
+	rows, err := d.db.Query(sqlGetPersonal)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al obtener personal: " + err.Error()
+		utils.CreateLog(rp.Mensaje)
+		return nil, rp
+	}
+	defer rows.Close()
+
+	var staff []models.PersonalModel
+	for rows.Next() {
+		var p models.PersonalModel
+		err := rows.Scan(
+			&p.Id,
+			&p.Nombre,
+			&p.Cedula,
+			&p.Telefono,
+			&p.Correo,
+			&p.Direccion,
+			&p.Titulo,
+			&p.Universidad,
+			&p.FechaIngreso,
+			&p.FechaNacimiento,
+			&p.Cargo,
+			&p.Sueldo,
+			&p.FrecuenciaPago,
+			&p.Status,
+			&p.CreatedAt,
+		)
+		if err != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error al escanear personal: " + err.Error()
+			utils.CreateLog(rp.Mensaje)
+			return nil, rp
+		}
+		staff = append(staff, p)
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Personal listado correctamente!"
+	return staff, rp
+}
+
+func (d *DB) PostPersonal(p models.PersonalModel) models.Respuesta {
+	var rp models.Respuesta
+	var newID int
+	err := d.db.QueryRow(sqlPostPersonal,
+		p.Nombre,
+		p.Cedula,
+		p.Telefono,
+		p.Correo,
+		p.Direccion,
+		p.Titulo,
+		p.Universidad,
+		p.FechaIngreso,
+		p.FechaNacimiento,
+		p.Cargo,
+		p.Sueldo,
+		p.FrecuenciaPago,
+		p.Status,
+	).Scan(&newID)
+
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "No se pudo agregar personal: " + err.Error()
+		utils.CreateLog(rp.Mensaje)
+		return rp
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Personal agregado correctamente con ID: " + strconv.Itoa(newID)
+	return rp
+}
+
+func (d *DB) UpdPersonal(p models.PersonalModel) models.Respuesta {
+	var rp models.Respuesta
+	resp, err := d.db.Exec(sqlUpdPersonal,
+		p.Id,
+		p.Nombre,
+		p.Cedula,
+		p.Telefono,
+		p.Correo,
+		p.Direccion,
+		p.Titulo,
+		p.Universidad,
+		p.FechaIngreso,
+		p.FechaNacimiento,
+		p.Cargo,
+		p.Sueldo,
+		p.FrecuenciaPago,
+		p.Status,
+	)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "No se pudo actualizar personal: " + err.Error()
+		utils.CreateLog(err.Error())
+		return rp
+	}
+	datos, err1 := resp.RowsAffected()
+	if err1 != nil {
+		rp.Status = 502
+		rp.Mensaje = err1.Error()
+	} else if datos > 0 {
+		rp.Mensaje = "Personal actualizado correctamente"
+		rp.Status = 200
+	} else {
+		rp.Status = 404
+		rp.Mensaje = "No se encontró personal con el ID proporcionado"
+	}
+	return rp
+}
+
+func (d *DB) DelPersonal(i models.Id) models.Respuesta {
+	var rp models.Respuesta
+	resp, err := d.db.Exec(sqlDelPersonal, i.Id)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "No se pudo eliminar personal: " + err.Error()
+		return rp
+	}
+	datos, err1 := resp.RowsAffected()
+	if err1 != nil {
+		rp.Status = 500
+		rp.Mensaje = err1.Error()
+	} else if datos > 0 {
+		rp.Mensaje = "Personal eliminado correctamente"
+		rp.Status = 200
+	} else {
+		rp.Status = 404
+		rp.Mensaje = "No se encontró personal para eliminar"
+	}
+	return rp
+}
+
+func (d *DB) GetNominas(desde, hasta string) ([]models.NominaModel, models.Respuesta) {
+	var rp models.Respuesta
+	rows, err := d.db.Query(sqlGetNominas, desde, hasta)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al obtener nóminas: " + err.Error()
+		return nil, rp
+	}
+	defer rows.Close()
+
+	var nominas []models.NominaModel
+	for rows.Next() {
+		var n models.NominaModel
+		err := rows.Scan(
+			&n.Id,
+			&n.PersonalId,
+			&n.NombrePersonal,
+			&n.FechaInicio,
+			&n.FechaFin,
+			&n.TipoPeriodo,
+			&n.MontoBase,
+			&n.Bonificaciones,
+			&n.Deducciones,
+			&n.MontoTotal,
+			&n.Status,
+			&n.FechaPago,
+			&n.EgresoId,
+			&n.Notas,
+			&n.CreatedAt,
+		)
+		if err != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error al escanear nómina: " + err.Error()
+			return nil, rp
+		}
+		nominas = append(nominas, n)
+	}
+
+	rp.Status = 200
+	return nominas, rp
+}
+
+func (d *DB) PostNomina(n models.NominaModel) models.Respuesta {
+	var rp models.Respuesta
+	var newID int
+	err := d.db.QueryRow(sqlPostNomina,
+		n.PersonalId,
+		n.FechaInicio,
+		n.FechaFin,
+		n.TipoPeriodo,
+		n.MontoBase,
+		n.Bonificaciones,
+		n.Deducciones,
+		n.MontoTotal,
+		n.Status,
+		n.Notas,
+	).Scan(&newID)
+
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al registrar nómina: " + err.Error()
+		return rp
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Nómina registrada correctamente"
+	return rp
+}
+
+func (d *DB) PayNomina(nominaID int, fechaPago string, metodoPago string, usuarioOperacion string) models.Respuesta {
+	var rp models.Respuesta
+
+	// 1. Obtener datos de la nómina
+	var n models.NominaModel
+	var nombrePersonal string
+	err := d.db.QueryRow(`SELECT n.monto_total, n.tipo_periodo, p.nombre FROM medi001.nominas n JOIN medi001.personal p ON n.personal_id = p.id WHERE n.id = $1`, nominaID).Scan(&n.MontoTotal, &n.TipoPeriodo, &nombrePersonal)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al obtener datos de nómina para pago: " + err.Error()
+		return rp
+	}
+
+	// 2. Crear el Egreso
+	egreso := models.Egreso{
+		Fecha:            fechaPago,
+		Descripcion:      fmt.Sprintf("Pago Nómina %s - %s", n.TipoPeriodo, nombrePersonal),
+		Monto:            n.MontoTotal,
+		Categoria:        "Nómina",
+		MetodoPago:       metodoPago,
+		Referencia:       fmt.Sprintf("NOM-%d", nominaID),
+		UsuarioOperacion: usuarioOperacion,
+	}
+
+	respEgreso := d.PostEgreso(egreso)
+	if respEgreso.Status != 200 {
+		return respEgreso
+	}
+
+	// Obtener ID del egreso recién creado
+	var egresoID int
+	err = d.db.QueryRow(`SELECT id FROM medi001.egresos WHERE referencia = $1 ORDER BY id DESC LIMIT 1`, egreso.Referencia).Scan(&egresoID)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al recuperar ID de egreso: " + err.Error()
+		return rp
+	}
+
+	// 3. Actualizar la Nómina
+	_, err = d.db.Exec(sqlUpdNominaStatus, nominaID, "Pagado", fechaPago, egresoID)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al actualizar estatus de nómina: " + err.Error()
+		return rp
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Nómina pagada y egreso generado correctamente"
+	return rp
+}
+
+func (d *DB) DelNomina(i models.Id) models.Respuesta {
+	var rp models.Respuesta
+	resp, err := d.db.Exec(sqlDelNomina, i.Id)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "No se pudo eliminar nómina: " + err.Error()
+		return rp
+	}
+	datos, _ := resp.RowsAffected()
+	if datos > 0 {
+		rp.Mensaje = "Nómina eliminada correctamente"
+		rp.Status = 200
+	} else {
+		rp.Status = 404
+		rp.Mensaje = "No se encontró la nómina o ya está pagada"
+	}
+	return rp
 }
