@@ -5103,8 +5103,15 @@ func (d *DB) PayNomina(nominaID int, fechaPago string, metodoPago string, usuari
 	}
 
 	// 2. Crear el Egreso
+	// Parsear fechaPago a time.Time
+	tPago, err := time.Parse(time.RFC3339, fechaPago)
+	if err != nil {
+		// Fallback por si la fecha viene en formato simple YYYY-MM-DD
+		tPago, _ = time.Parse("2006-01-02", fechaPago)
+	}
+
 	egreso := models.Egreso{
-		Fecha:            fechaPago,
+		Fecha:            tPago,
 		Descripcion:      fmt.Sprintf("Pago Nómina %s - %s", n.TipoPeriodo, nombrePersonal),
 		Monto:            n.MontoTotal,
 		Categoria:        "Nómina",
