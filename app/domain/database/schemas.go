@@ -909,12 +909,12 @@ const sqlPostConfigEgreso = `INSERT INTO medi001.config_egresos (tipo, valor) VA
 
 const sqlDelConfigEgreso = `UPDATE medi001.config_egresos SET status = false WHERE id = $1;`
 
-const sqlGetPersonal = `SELECT id, nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, status, created_at FROM medi001.personal ORDER BY nombre;`
+const sqlGetPersonal = `SELECT id, nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, frecuencia_pago, status, created_at FROM medi001.personal ORDER BY nombre;`
 
-const sqlPostPersonal = `INSERT INTO medi001.personal (nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, status) 
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
+const sqlPostPersonal = `INSERT INTO medi001.personal (nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, frecuencia_pago, status) 
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id;`
 
-const sqlUpdPersonal = `UPDATE medi001.personal SET nombre=$2, cedula=$3, telefono=$4, correo=$5, direccion=$6, titulo=$7, universidad=$8, fecha_ingreso=$9, fecha_nacimiento=$10, cargo=$11, sueldo=$12, status=$13 WHERE id=$1;`
+const sqlUpdPersonal = `UPDATE medi001.personal SET nombre=$2, cedula=$3, telefono=$4, correo=$5, direccion=$6, titulo=$7, universidad=$8, fecha_ingreso=$9, fecha_nacimiento=$10, cargo=$11, sueldo=$12, frecuencia_pago=$13, status=$14 WHERE id=$1;`
 
 const sqlDelPersonal = `DELETE FROM medi001.personal WHERE id = $1;`
 
