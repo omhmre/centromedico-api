@@ -5091,7 +5091,6 @@ func (d *DB) PostNomina(n models.NominaModel) models.Respuesta {
 
 func (d *DB) UpdNomina(n models.NominaModel) models.Respuesta {
 	var rp models.Respuesta
-	utils.CreateLog(fmt.Sprintf("DB.UpdNomina: ID=%d, Base=%.2f, Status=%s", n.Id, n.MontoBase, n.Status))
 
 	resp, err := d.db.Exec(sqlUpdNomina,
 		n.Id,
