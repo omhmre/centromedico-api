@@ -88,6 +88,7 @@ func (a *App) AddDiagnosis() http.HandlerFunc {
 
 func (a *App) GetCitas() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		datos, resp := a.DB.GetCitas()
 		if resp.Status >= 400 {
 			sendResponse(w, r, resp, http.StatusInternalServerError)
@@ -103,6 +104,7 @@ func (a *App) GetCitas() http.HandlerFunc {
 
 func (a *App) GetCitasPaciente() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		var paciente models.PacientesModel
 		err := json.NewDecoder(r.Body).Decode(&paciente)
 		if err != nil {
@@ -140,6 +142,7 @@ func (a *App) DelCita() http.HandlerFunc {
 
 func (a *App) GetDoctores() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		var rp models.Respuesta
 		datos, err := a.DB.GetDoctores()
 		if err.Status > 200 {
@@ -152,7 +155,7 @@ func (a *App) GetDoctores() http.HandlerFunc {
 
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -384,6 +387,7 @@ func (a *App) DelDoctor() http.HandlerFunc {
 
 func (a *App) GetPayments() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		var id models.Id
 		err := json.NewDecoder(r.Body).Decode(&id)
 		if err != nil {
@@ -427,6 +431,7 @@ func (a *App) PostPayments() http.HandlerFunc {
 
 func (a *App) GetRelPagos() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		var rp models.Respuesta
 		var id models.Fechas
 		err := json.NewDecoder(r.Body).Decode(&id)
@@ -535,6 +540,7 @@ func (a *App) DelPrecioEspecialidad() http.HandlerFunc {
 
 func (a *App) GetCitasFecha() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		var fechas models.Fechas
 		var rp models.Respuesta
 

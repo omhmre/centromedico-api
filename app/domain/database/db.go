@@ -172,6 +172,7 @@ type PostDB interface {
 	// Nómina
 	GetNominas(desde, hasta string) ([]models.NominaModel, models.Respuesta)
 	PostNomina(n models.NominaModel) models.Respuesta
+	UpdNomina(n models.NominaModel) models.Respuesta
 	PayNomina(nominaID int, fechaPago string, metodoPago string, usuarioOperacion string) models.Respuesta
 	DelNomina(i models.Id) models.Respuesta
 }
@@ -3714,8 +3715,8 @@ func (d *DB) UpdProveedor(e models.Proveedor) models.Respuesta {
 func (d *DB) DelProveedor(e models.Id) models.Respuesta {
 	var rp models.Respuesta
 
-	log.Println("eliminar proveedor")
-	log.Println(e.Id)
+	// log.Println("eliminar proveedor")
+	// log.Println(e.Id)
 	resp, err := d.db.Exec(sqlDelProveedor, e.Id)
 
 	if err != nil {
@@ -5086,6 +5087,38 @@ func (d *DB) PostNomina(n models.NominaModel) models.Respuesta {
 
 	rp.Status = 200
 	rp.Mensaje = "Nómina registrada correctamente"
+	return rp
+}
+
+func (d *DB) UpdNomina(n models.NominaModel) models.Respuesta {
+	var rp models.Respuesta
+	utils.CreateLog(fmt.Sprintf("DB.UpdNomina: ID=%d, Base=%.2f, Status=%s", n.Id, n.MontoBase, n.Status))
+
+	resp, err := d.db.Exec(sqlUpdNomina,
+		n.Id,
+		n.MontoBase,
+		n.Bonificaciones,
+		n.Deducciones,
+		n.MontoTotal,
+		n.Notas,
+	)
+
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al actualizar nómina: " + err.Error()
+		utils.CreateLog(rp.Mensaje)
+		return rp
+	}
+
+	datos, _ := resp.RowsAffected()
+	if datos > 0 {
+		rp.Status = 200
+		rp.Mensaje = "Nómina actualizada correctamente"
+	} else {
+		rp.Status = 404
+		rp.Mensaje = fmt.Sprintf("No se encontró la nómina con ID %d o no está en estado Pendiente", n.Id)
+		utils.CreateLog("DB.UpdNomina: " + rp.Mensaje)
+	}
 	return rp
 }
 

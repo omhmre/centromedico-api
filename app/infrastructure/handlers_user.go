@@ -25,7 +25,7 @@ func (a *App) GetUsuarios() http.HandlerFunc {
 		// log.Println(datos)
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}

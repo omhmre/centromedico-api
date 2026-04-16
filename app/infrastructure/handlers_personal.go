@@ -9,6 +9,7 @@ import (
 
 func (a *App) GetPersonal() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		datos, rp := a.DB.GetPersonal()
 		if rp.Status != 200 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)

@@ -84,7 +84,7 @@ func (a *App) GetInventario() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -102,7 +102,7 @@ func (a *App) GetInventarioFormal() http.HandlerFunc {
 		rp.Mensaje = "Inventario listado correctamente!"
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1080,7 +1080,7 @@ func (a *App) GetDivisas() http.HandlerFunc {
 		// log.Println(datos)
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1102,7 +1102,7 @@ func (a *App) GetPreFactura() http.HandlerFunc {
 		rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1124,7 +1124,7 @@ func (a *App) GetFacturaId() http.HandlerFunc {
 		rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1147,7 +1147,7 @@ func (a *App) GetPresupuestoId() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1210,7 +1210,7 @@ func (a *App) PostVentasFactura() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1232,7 +1232,7 @@ func (a *App) PostVentasProductos() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1291,7 +1291,7 @@ func (a *App) GetDetPagosFecha() http.HandlerFunc {
 
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1315,7 +1315,7 @@ func (a *App) GetResumenDetPagos() http.HandlerFunc {
 
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1420,7 +1420,7 @@ func (a *App) GetVendedores() http.HandlerFunc {
 		// log.Println(datos)
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1439,7 +1439,7 @@ func (a *App) GetTopVentas() http.HandlerFunc {
 		rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1457,7 +1457,7 @@ func (a *App) GetVentasMes() http.HandlerFunc {
 		rp.Mensaje = "Ventas listadas correctamente!"
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1485,8 +1485,7 @@ func (a *App) GetVentas() http.HandlerFunc {
 		rp.Mensaje = "Ventas listadas correctamente!"
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
-			utils.CreateLog("Cannot format json")
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1501,7 +1500,7 @@ func (a *App) ClearLogs() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(rp)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1527,7 +1526,7 @@ func (a *App) GetProveedores() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1548,7 +1547,7 @@ func (a *App) GetCxcResumen() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1567,7 +1566,7 @@ func (a *App) GetCxcVencida() http.HandlerFunc {
 		// rp.Data = datos
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1586,7 +1585,7 @@ func (a *App) GetCompras() http.HandlerFunc {
 		rp.Mensaje = "compras listadas correctamente!"
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}
@@ -1600,7 +1599,7 @@ func (a *App) GetParametros() http.HandlerFunc {
 		}
 		data := json.NewEncoder(w).Encode(datos)
 		if data != nil {
-			fmt.Fprintf(w, "Cannot format json, err=%v/n", data)
+			utils.CreateLog(fmt.Sprintf("Cannot format json, err=%v\n", data))
 			return
 		}
 	}

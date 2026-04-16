@@ -17,6 +17,8 @@ type PersonalModel struct {
 	Sueldo          float64    `json:"sueldo"`
 	FrecuenciaPago  string     `json:"frecuencia_pago"`
 	Status          string     `json:"status"`
+	DoctorId        *int       `json:"doctor_id"`
+	ComisionPorc    float64    `json:"comision_porc"`
 	CreatedAt       *time.Time `json:"created_at"`
 	UpdatedAt       *time.Time `json:"updated_at"`
 }

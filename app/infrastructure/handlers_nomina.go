@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"omhmre.com/centromedico/app/domain/models"
+	"omhmre.com/centromedico/app/domain/utils"
 )
 
 func (a *App) GetNominas() http.HandlerFunc {
@@ -22,7 +23,7 @@ func (a *App) GetNominas() http.HandlerFunc {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 			return
 		}
-		json.NewEncoder(w).Encode(datos)
+		sendResponse(w, r, datos, http.StatusOK)
 	}
 }
 
@@ -35,6 +36,24 @@ func (a *App) PostNomina() http.HandlerFunc {
 		}
 		rp := a.DB.PostNomina(n)
 		if rp.Status >= 400 {
+			sendResponse(w, r, rp, http.StatusInternalServerError)
+		} else {
+			sendResponse(w, r, rp, http.StatusOK)
+		}
+	}
+}
+
+func (a *App) PutNomina() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var n models.NominaModel
+		if err := json.NewDecoder(r.Body).Decode(&n); err != nil {
+			utils.CreateLog("Error decodificando PutNomina: " + err.Error())
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Cuerpo de solicitud inválido"}, http.StatusBadRequest)
+			return
+		}
+		rp := a.DB.UpdNomina(n)
+		if rp.Status >= 400 {
+			utils.CreateLog("Error en DB.UpdNomina: " + rp.Mensaje)
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
 			sendResponse(w, r, rp, http.StatusOK)

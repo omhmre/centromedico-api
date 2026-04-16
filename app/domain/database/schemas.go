@@ -932,4 +932,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id;`
 
 const sqlUpdNominaStatus = `UPDATE medi001.nominas SET status=$2, fecha_pago=$3, egreso_id=$4, updated_at=NOW() WHERE id=$1;`
 
+const sqlUpdNomina = `UPDATE medi001.nominas SET monto_base=$2, bonificaciones=$3, deducciones=$4, monto_total=$5, notas=$6, updated_at=NOW() WHERE id=$1 AND status='Pendiente';`
+
+
 const sqlDelNomina = `DELETE FROM medi001.nominas WHERE id=$1 AND status='Pendiente';`

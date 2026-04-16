@@ -307,6 +307,7 @@ func (a *App) initializeRoutes() {
 	// Nómina
 	a.Router.HandleFunc("/getnominas", a.GetNominas())
 	a.Router.HandleFunc("/postnomina", a.PostNomina())
+	a.Router.HandleFunc("/updnomina", a.PutNomina())
 	a.Router.HandleFunc("/paynomina", a.PayNomina())
 	a.Router.HandleFunc("/delnomina", a.DelNomina())
 }
