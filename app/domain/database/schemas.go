@@ -874,19 +874,28 @@ const sqlPostSignosVitales = `INSERT INTO medi001.paciente_signos_vitales
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
 
 const sqlGetMedicalHistoryTimeline = `
-(SELECT fecha, 'Consulta' as tipo, evolucion as detalle, (SELECT nombres FROM medi001.doctores WHERE id = id_doctor) as doctor, (SELECT espec FROM medi001.doctores WHERE id = id_doctor) as especialidad, id as id_referencia
+(SELECT fecha, 'Consulta' as tipo, CASE WHEN (contenido IS NOT NULL AND contenido != '') THEN SUBSTRING(contenido, 1, 200) ELSE evolucion END as detalle, (SELECT nombres FROM medi001.doctores WHERE id = id_doctor) as doctor, (SELECT espec FROM medi001.doctores WHERE id = id_doctor) as especialidad, id as id_referencia
  FROM medi001.informe_medico WHERE id_paciente = $1)
+
 UNION ALL
 (SELECT fecha as fecha, 'Signos Vitales' as tipo, CONCAT('Tensión: ', tension_arterial, ', Peso: ', peso, 'kg') as detalle, '' as doctor, '' as especialidad, id as id_referencia
  FROM medi001.paciente_signos_vitales WHERE id_paciente = $1)
 ORDER BY fecha DESC;`
 
-const sqlGetInformesMedico = `SELECT id, id_paciente, fecha, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, usuario_operacion 
+const sqlGetInformesMedico = `SELECT id, id_paciente, fecha, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, contenido, entregado, fecha_entrega, modificado_post_entrega, usuario_operacion 
 FROM medi001.informe_medico WHERE id_paciente = $1 ORDER BY fecha DESC;`
 
+
 const sqlPostInformeMedico = `INSERT INTO medi001.informe_medico 
-(id_paciente, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, usuario_operacion)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
+(id_paciente, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, contenido, entregado, fecha_entrega, modificado_post_entrega, usuario_operacion)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
+
+const sqlUpdateInformeMedico = `UPDATE medi001.informe_medico SET 
+id_doctor = $2, id_cita = $3, diagnostico = $4, evolucion = $5, plan = $6, recomendaciones = $7, contenido = $8, entregado = $9, fecha_entrega = $10, modificado_post_entrega = $11, usuario_operacion = $12 
+WHERE id = $1;`
+
+const sqlMarkInformeEntregado = `UPDATE medi001.informe_medico SET entregado = true, fecha_entrega = NOW() WHERE id = $1;`
+
 
 // ─── SQL de Egresos ──────────────────────────────────────────────────────────
 

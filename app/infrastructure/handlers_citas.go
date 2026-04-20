@@ -744,3 +744,38 @@ func (a *App) PostInformeMedico() http.HandlerFunc {
 		}
 	}
 }
+
+func (a *App) GetInformesMedico() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.URL.Query().Get("id_paciente")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "ID de paciente inválido"}, 400)
+			return
+		}
+		datos, resp := a.DB.GetInformesMedico(id)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+			return
+		}
+		json.NewEncoder(w).Encode(datos)
+	}
+}
+
+func (a *App) MarkInformeAsDelivered() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.URL.Query().Get("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "ID de informe inválido"}, 400)
+			return
+		}
+		resp := a.DB.MarkInformeAsDelivered(id)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, 500)
+		} else {
+			sendResponse(w, r, resp, 200)
+		}
+	}
+}
+

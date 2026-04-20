@@ -140,6 +140,9 @@ type PostDB interface {
 	FetchExchangeRate() (float64, models.Respuesta)
 	UpdateUnpaidAppointmentsVESRate(newRate float64) models.Respuesta
 	PostInformeMedico(i models.InformeMedico) models.Respuesta
+	GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.Respuesta)
+	MarkInformeAsDelivered(id int) models.Respuesta
+
 	// Egresos
 	GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta)
 	PostEgreso(e models.Egreso) models.Respuesta
@@ -4787,18 +4790,86 @@ func (d *DB) GetPatientMedicalInsights(idPaciente int) (map[string]interface{}, 
 	rp.Status = 200
 	return insights, rp
 }
-func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
+func (d *DB) GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.Respuesta) {
+	var results []models.InformeMedico
 	var rp models.Respuesta
-	err := d.db.QueryRow(sqlPostInformeMedico, i.IdPaciente, i.IdDoctor, i.IdCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones, i.UsuarioOperacion).Scan(&i.Id)
+	rows, err := d.db.Query(sqlGetInformesMedico, idPaciente)
 	if err != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al guardar informe mÃ©dico: " + err.Error()
+		rp.Mensaje = "Error al obtener informes médicos: " + err.Error()
+		return nil, rp
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var i models.InformeMedico
+		err := rows.Scan(
+			&i.Id, &i.IdPaciente, &i.Fecha, &i.IdDoctor, &i.IdCita,
+			&i.Diagnostico, &i.Evolucion, &i.Plan, &i.Recomendaciones,
+			&i.Contenido, &i.Entregado, &i.FechaEntrega, &i.ModificadoPostEntrega,
+			&i.UsuarioOperacion,
+		)
+		if err != nil {
+			utils.CreateLog("Error scanning medical report: " + err.Error())
+			continue
+		}
+		results = append(results, i)
+	}
+	rp.Status = 200
+	return results, rp
+}
+
+func (d *DB) MarkInformeAsDelivered(id int) models.Respuesta {
+	var rp models.Respuesta
+	_, err := d.db.Exec(sqlMarkInformeEntregado, id)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al marcar informe como entregado: " + err.Error()
 		return rp
 	}
 	rp.Status = 200
-	rp.Mensaje = "Informe mÃ©dico guardado con Ã©xito"
+	rp.Mensaje = "Informe marcado como entregado"
 	return rp
 }
+
+func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
+	var rp models.Respuesta
+
+	if i.Id != nil && *i.Id > 0 {
+		// Lógica de Auditoría: verificar si ya fue entregado
+		var previouslyDelivered bool
+		d.db.QueryRow(`SELECT entregado FROM medi001.informe_medico WHERE id = $1`, *i.Id).Scan(&previouslyDelivered)
+
+		if previouslyDelivered {
+			i.ModificadoPostEntrega = true
+		}
+
+		_, err := d.db.Exec(sqlUpdateInformeMedico,
+			*i.Id, i.IdDoctor, i.IdCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones,
+			i.Contenido, i.Entregado, i.FechaEntrega, i.ModificadoPostEntrega, i.UsuarioOperacion)
+		if err != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error al actualizar informe médico: " + err.Error()
+			return rp
+		}
+		rp.Status = 200
+		rp.Mensaje = "Informe médico actualizado con éxito"
+		return rp
+	}
+
+	err := d.db.QueryRow(sqlPostInformeMedico,
+		i.IdPaciente, i.IdDoctor, i.IdCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones,
+		i.Contenido, i.Entregado, i.FechaEntrega, i.ModificadoPostEntrega, i.UsuarioOperacion).Scan(&i.Id)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al guardar informe médico: " + err.Error()
+		return rp
+	}
+	rp.Status = 200
+	rp.Mensaje = "Informe médico guardado con éxito"
+	return rp
+}
+
+
 
 // â”€â”€â”€ MÃ©todos de Egresos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

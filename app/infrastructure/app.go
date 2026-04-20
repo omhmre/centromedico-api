@@ -257,6 +257,9 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/getmedicaltimeline", a.GetMedicalHistoryTimeline())
 	a.Router.HandleFunc("/getpatientinsights", a.GetPatientMedicalInsights())
 	a.Router.HandleFunc("/postinformemedico", a.PostInformeMedico())
+	a.Router.HandleFunc("/getinformesmedico", a.GetInformesMedico())
+	a.Router.HandleFunc("/markinformeentregado", a.MarkInformeAsDelivered())
+
 
 	// Doctores
 	a.Router.HandleFunc("/getdoctores", a.GetDoctores())
