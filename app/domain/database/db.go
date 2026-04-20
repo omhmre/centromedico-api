@@ -4176,9 +4176,11 @@ func (d *DB) GetInformesMedicos(idPaciente int) ([]models.InformeMedico, models.
 	var informes []models.InformeMedico
 	for rows.Next() {
 		var informe models.InformeMedico
+		var id int
 		var idCita sql.NullInt64
 		err := rows.Scan(
-			&informe.Id,
+
+			&id,
 			&informe.IdPaciente,
 			&informe.Fecha,
 			&informe.IdDoctor,
@@ -4194,8 +4196,10 @@ func (d *DB) GetInformesMedicos(idPaciente int) ([]models.InformeMedico, models.
 			utils.CreateLog(rp.Mensaje)
 			return nil, rp
 		}
+		informe.Id = &id
 		if idCita.Valid {
-			informe.IdCita = int(idCita.Int64)
+			cid := int(idCita.Int64)
+			informe.IdCita = &cid
 		}
 		informes = append(informes, informe)
 	}
@@ -4209,9 +4213,10 @@ func (d *DB) GetInformeMedico(id int) (models.InformeMedico, models.Respuesta) {
 	var informe models.InformeMedico
 	const sqlGetInforme = `SELECT id, id_paciente, fecha, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones FROM medi001.informes_medicos WHERE id = $1`
 
+	var idVal int
 	var idCita sql.NullInt64
 	err := d.db.QueryRow(sqlGetInforme, id).Scan(
-		&informe.Id,
+		&idVal,
 		&informe.IdPaciente,
 		&informe.Fecha,
 		&informe.IdDoctor,
@@ -4227,8 +4232,10 @@ func (d *DB) GetInformeMedico(id int) (models.InformeMedico, models.Respuesta) {
 		utils.CreateLog(rp.Mensaje)
 		return informe, rp
 	}
+	informe.Id = &idVal
 	if idCita.Valid {
-		informe.IdCita = int(idCita.Int64)
+		cid := int(idCita.Int64)
+		informe.IdCita = &cid
 	}
 	rp.Status = 200
 	rp.Mensaje = "Informe mÃ©dico obtenido correctamente"
@@ -4240,8 +4247,8 @@ func (d *DB) AddInformeMedico(i models.InformeMedico) models.Respuesta {
 	const sqlAddInforme = `INSERT INTO medi001.informes_medicos (id_paciente, fecha, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
 
 	var idCita interface{}
-	if i.IdCita != 0 {
-		idCita = i.IdCita
+	if i.IdCita != nil && *i.IdCita != 0 {
+		idCita = *i.IdCita
 	} else {
 		idCita = nil
 	}
@@ -4264,8 +4271,8 @@ func (d *DB) UpdInformeMedico(i models.InformeMedico) models.Respuesta {
 	const sqlUpdInforme = `UPDATE medi001.informes_medicos SET fecha=$1, id_doctor=$2, id_cita=$3, diagnostico=$4, evolucion=$5, plan=$6, recomendaciones=$7 WHERE id=$8`
 
 	var idCita interface{}
-	if i.IdCita != 0 {
-		idCita = i.IdCita
+	if i.IdCita != nil && *i.IdCita != 0 {
+		idCita = *i.IdCita
 	} else {
 		idCita = nil
 	}
@@ -4277,6 +4284,7 @@ func (d *DB) UpdInformeMedico(i models.InformeMedico) models.Respuesta {
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
+
 
 	rows, _ := res.RowsAffected()
 	if rows > 0 {
@@ -4802,18 +4810,28 @@ func (d *DB) GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.R
 	defer rows.Close()
 	for rows.Next() {
 		var i models.InformeMedico
+		var id int
+		var idCita sql.NullInt64
+		var fEntrega *time.Time
 		err := rows.Scan(
-			&i.Id, &i.IdPaciente, &i.Fecha, &i.IdDoctor, &i.IdCita,
+			&id, &i.IdPaciente, &i.Fecha, &i.IdDoctor, &idCita,
 			&i.Diagnostico, &i.Evolucion, &i.Plan, &i.Recomendaciones,
-			&i.Contenido, &i.Entregado, &i.FechaEntrega, &i.ModificadoPostEntrega,
+			&i.Contenido, &i.Entregado, &fEntrega, &i.ModificadoPostEntrega,
 			&i.UsuarioOperacion,
 		)
 		if err != nil {
 			utils.CreateLog("Error scanning medical report: " + err.Error())
 			continue
 		}
+		i.Id = &id
+		if idCita.Valid {
+			cid := int(idCita.Int64)
+			i.IdCita = &cid
+		}
+		i.FechaEntrega = fEntrega
 		results = append(results, i)
 	}
+
 	rp.Status = 200
 	return results, rp
 }
@@ -4856,9 +4874,14 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 		return rp
 	}
 
+	var newID int
 	err := d.db.QueryRow(sqlPostInformeMedico,
 		i.IdPaciente, i.IdDoctor, i.IdCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones,
-		i.Contenido, i.Entregado, i.FechaEntrega, i.ModificadoPostEntrega, i.UsuarioOperacion).Scan(&i.Id)
+		i.Contenido, i.Entregado, i.FechaEntrega, i.ModificadoPostEntrega, i.UsuarioOperacion).Scan(&newID)
+	if err == nil {
+		i.Id = &newID
+	}
+
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "Error al guardar informe médico: " + err.Error()
