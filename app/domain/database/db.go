@@ -4811,10 +4811,12 @@ func (d *DB) GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.R
 	for rows.Next() {
 		var i models.InformeMedico
 		var id int
+		var idPac int
+		var idDoc sql.NullInt64
 		var idCita sql.NullInt64
 		var fEntrega *time.Time
 		err := rows.Scan(
-			&id, &i.IdPaciente, &i.Fecha, &i.IdDoctor, &idCita,
+			&id, &idPac, &i.Fecha, &idDoc, &idCita,
 			&i.Diagnostico, &i.Evolucion, &i.Plan, &i.Recomendaciones,
 			&i.Contenido, &i.Entregado, &fEntrega, &i.ModificadoPostEntrega,
 			&i.UsuarioOperacion,
@@ -4823,7 +4825,19 @@ func (d *DB) GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.R
 			utils.CreateLog("Error scanning medical report: " + err.Error())
 			continue
 		}
-		i.Id = &id
+		
+		// Asignar punteros de forma segura
+		newID := id
+		i.Id = &newID
+		
+		newIDPac := idPac
+		i.IdPaciente = &newIDPac
+
+		if idDoc.Valid {
+			dID := int(idDoc.Int64)
+			i.IdDoctor = &dID
+		}
+		
 		if idCita.Valid {
 			cid := int(idCita.Int64)
 			i.IdCita = &cid
@@ -4831,6 +4845,7 @@ func (d *DB) GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.R
 		i.FechaEntrega = fEntrega
 		results = append(results, i)
 	}
+
 
 	rp.Status = 200
 	return results, rp
@@ -4851,6 +4866,15 @@ func (d *DB) MarkInformeAsDelivered(id int) models.Respuesta {
 
 func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 	var rp models.Respuesta
+
+	// Limpiar IDs en 0 para que Postgres los trate como NULL si son opcionales
+	if i.IdDoctor != nil && *i.IdDoctor == 0 {
+		i.IdDoctor = nil
+	}
+	if i.IdCita != nil && *i.IdCita == 0 {
+		i.IdCita = nil
+	}
+
 
 	if i.Id != nil && *i.Id > 0 {
 		// Lógica de Auditoría: verificar si ya fue entregado
@@ -4878,8 +4902,10 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 	err := d.db.QueryRow(sqlPostInformeMedico,
 		i.IdPaciente, i.IdDoctor, i.IdCita, i.Diagnostico, i.Evolucion, i.Plan, i.Recomendaciones,
 		i.Contenido, i.Entregado, i.FechaEntrega, i.ModificadoPostEntrega, i.UsuarioOperacion).Scan(&newID)
+	
 	if err == nil {
-		i.Id = &newID
+		copyID := newID
+		i.Id = &copyID
 	}
 
 	if err != nil {
@@ -4891,6 +4917,7 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 	rp.Mensaje = "Informe médico guardado con éxito"
 	return rp
 }
+
 
 
 

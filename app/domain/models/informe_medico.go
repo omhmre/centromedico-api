@@ -7,9 +7,9 @@ import (
 // InformeMedico representa la estructura de un informe médico en la base de datos.
 type InformeMedico struct {
 	Id                    *int       `json:"id"`
-	IdPaciente            int        `json:"id_paciente"`
+	IdPaciente            *int       `json:"id_paciente"`
 	Fecha                 time.Time  `json:"fecha"`
-	IdDoctor              int        `json:"id_doctor"`
+	IdDoctor              *int       `json:"id_doctor"`
 	IdCita                *int       `json:"id_cita"`
 	Diagnostico           string     `json:"diagnostico"`
 	Evolucion             string     `json:"evolucion"`
@@ -21,5 +21,6 @@ type InformeMedico struct {
 	ModificadoPostEntrega bool       `json:"modificado_post_entrega"`
 	UsuarioOperacion      string     `json:"usuario_operacion"`
 }
+
 
 
