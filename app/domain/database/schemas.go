@@ -595,6 +595,8 @@ LEFT JOIN
     medi001.doctores d ON c.iddoctor = d.id
 LEFT JOIN
     medi001.pacientes p ON c.cedula = p.cedula
+WHERE
+    c.inicio >= CURRENT_DATE - INTERVAL '1 year'
 ORDER BY
     c.id;`
 
