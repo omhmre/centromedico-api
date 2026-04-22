@@ -529,16 +529,9 @@ const sqlDelEmailConfig = `DELETE FROM empre001.emailconfig WHERE id = $1;`
 
 const sqlDelPresupuesto = `DELETE FROM empre001.presupuestos `
 
-const sqlGetDoctores = `select d.id, d.nombres, d.servicios, d.dir, d.correo, d.whatsapp, d.instagram, 
-d.days_of_week, d.start_time, d.end_time, d.slot_duration,
-d.es_medico, d.titulo, d.titulo_academico, d.num_mpps, d.num_cm, d.rif
-from medi001.doctores d order by d.nombres;`
+const sqlGetDoctores = `SELECT id, nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration, monto_cita, es_medico, titulo, titulo_academico, num_mpps, num_cm, rif, cedula, fecha_nacimiento, fecha_ingreso FROM medi001.doctores ORDER BY nombres`
 
-const sqlUpdDoctores = `update medi001.doctores set 
-nombres = $2, servicios = $3, dir = $4, correo = $5, whatsapp = $6, instagram = $7,
-days_of_week = $8, start_time = $9, end_time = $10, slot_duration = $11,
-es_medico = $12, titulo = $13, titulo_academico = $14, num_mpps = $15, num_cm = $16, rif = $17
-where id = $1;`
+const sqlUpdDoctores = `UPDATE medi001.doctores SET nombres = $2, servicios = $3, dir = $4, correo = $5, whatsapp = $6, instagram = $7, days_of_week = $8, start_time = $9, end_time = $10, slot_duration = $11, monto_cita = $12, es_medico = $13, titulo = $14, titulo_academico = $15, num_mpps = $16, num_cm = $17, rif = $18, cedula = $19, fecha_nacimiento = $20, fecha_ingreso = $21 WHERE id = $1`
 
 const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at
 FROM medi001.pacientes;`
@@ -557,10 +550,8 @@ const sqlUpdPacienteStatus = `UPDATE medi001.pacientes SET status=$2 WHERE id=$1
 
 const sqlDelPaciente = `DELETE FROM medi001.pacientes WHERE id = $1;`
 
-const sqlPostDoctor = `INSERT INTO medi001.doctores
-(id, nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration,
-es_medico, titulo, titulo_academico, num_mpps, num_cm, rif)
-VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);`
+const sqlPostDoctor = `INSERT INTO medi001.doctores (id, nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration, monto_cita, es_medico, titulo, titulo_academico, num_mpps, num_cm, rif, cedula, fecha_nacimiento, fecha_ingreso) 
+VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);`
 
 const sqlDelDoctor = `DELETE FROM medi001.doctores WHERE id = $1;`
 

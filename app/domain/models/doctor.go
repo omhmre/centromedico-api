@@ -16,16 +16,20 @@ type DoctoresModel struct {
 	Correo         string          `json:"correo"`
 	Whatsapp       string          `json:"whatsapp"`
 	Instagram      string          `json:"instagram"`
-	DaysOfWeek     []int           `json:"daysOfWeek"`
-	StartTime      string          `json:"startTime"`
-	EndTime        string          `json:"endTime"`
-	SlotDuration   int             `json:"slotDuration"`
+	DaysOfWeek     []int           `json:"days_of_week"`
+	StartTime      string          `json:"start_time"`
+	EndTime        string          `json:"end_time"`
+	SlotDuration   int             `json:"slot_duration"`
+	MontoCita      float64         `json:"monto_cita"`
 	EsMedico       bool            `json:"es_medico"`
 	Titulo         string          `json:"titulo"`
 	TituloAcademico string         `json:"titulo_academico"`
 	NumMPPS        string          `json:"num_mpps"`
 	NumCM          string          `json:"num_cm"`
 	Rif            string          `json:"rif"`
+	Cedula         string          `json:"cedula"`
+	FechaNacimiento string         `json:"fecha_nacimiento"`
+	FechaIngreso    string         `json:"fecha_ingreso"`
 }
 
 // Add String method for DoctoresModel

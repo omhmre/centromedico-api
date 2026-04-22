@@ -644,12 +644,16 @@ func (d *DB) UpdDoctores(i models.DoctoresModel) models.Respuesta {
 		i.StartTime,    // $9
 		i.EndTime,      // $10
 		i.SlotDuration, // $11
-		i.EsMedico,     // $12
-		i.Titulo,       // $13
-		i.TituloAcademico, // $14
-		i.NumMPPS,      // $15
-		i.NumCM,        // $16
-		i.Rif,           // $17
+		i.MontoCita,    // $12
+		i.EsMedico,     // $13
+		i.Titulo,       // $14
+		i.TituloAcademico, // $15
+		i.NumMPPS,      // $16
+		i.NumCM,        // $17
+		i.Rif,           // $18
+		i.Cedula,        // $19
+		i.FechaNacimiento, // $20
+		i.FechaIngreso,    // $21
 	)
 	if err != nil {
 		rp.Status = 500
@@ -683,8 +687,8 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 	}
 	defer rows.Close()
 	doctores := []models.DoctoresModel{}
-	doctor := models.DoctoresModel{}
 	for rows.Next() {
+		doctor := models.DoctoresModel{}
 		var daysOfWeekRaw []byte
 		var serviciosRaw []byte
 		err2 :=
@@ -700,12 +704,16 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 				&doctor.StartTime,
 				&doctor.EndTime,
 				&doctor.SlotDuration,
+				&doctor.MontoCita,
 				&doctor.EsMedico,
 				&doctor.Titulo,
 				&doctor.TituloAcademico,
 				&doctor.NumMPPS,
 				&doctor.NumCM,
 				&doctor.Rif,
+				&doctor.Cedula,
+				&doctor.FechaNacimiento,
+				&doctor.FechaIngreso,
 			)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
@@ -717,14 +725,6 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 		}
 		if serviciosRaw != nil {
 			json.Unmarshal(serviciosRaw, &doctor.Servicios)
-		}
-		if err2 != nil {
-			utils.CreateLog(err2.Error())
-		}
-		if daysOfWeekRaw != nil {
-			json.Unmarshal(daysOfWeekRaw, &doctor.DaysOfWeek)
-		} else {
-			doctor.DaysOfWeek = []int{1, 2, 3, 4, 5} // Fallback to default
 		}
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
@@ -751,12 +751,16 @@ func (d *DB) PostDoctor(i models.DoctoresModel) models.Respuesta {
 		i.StartTime,    // $8
 		i.EndTime,      // $9
 		i.SlotDuration, // $10
-		i.EsMedico,     // $11
-		i.Titulo,       // $12
-		i.TituloAcademico, // $13
-		i.NumMPPS,      // $14
-		i.NumCM,        // $15
-		i.Rif,           // $16
+		i.MontoCita,    // $11
+		i.EsMedico,     // $12
+		i.Titulo,       // $13
+		i.TituloAcademico, // $14
+		i.NumMPPS,      // $15
+		i.NumCM,        // $16
+		i.Rif,           // $17
+		i.Cedula,        // $18
+		i.FechaNacimiento, // $19
+		i.FechaIngreso,    // $20
 	)
 	if err != nil {
 		rp.Status = 501

@@ -173,6 +173,7 @@ func (a *App) UpdateDoctores() http.HandlerFunc {
 			sendResponse(w, r, respuesta, http.StatusBadRequest)
 			return
 		}
+		utils.CreateLog(fmt.Sprintf("Actualizando doctor ID: %d, Nombres: %s, EsMedico: %v, Titulo: %s, RIF: %s", doctor.Id, doctor.Nombres, doctor.EsMedico, doctor.Titulo, doctor.Rif))
 		rp := a.DB.UpdDoctores(doctor)
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
@@ -354,6 +355,7 @@ func (a *App) PostDoctor() http.HandlerFunc {
 			sendResponse(w, r, respuesta, http.StatusBadRequest)
 			return
 		}
+		utils.CreateLog(fmt.Sprintf("Creando doctor: %s, EsMedico: %v, Titulo: %s, RIF: %s", doctor.Nombres, doctor.EsMedico, doctor.Titulo, doctor.Rif))
 		rp := a.DB.PostDoctor(doctor)
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
