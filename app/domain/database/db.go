@@ -654,6 +654,10 @@ func (d *DB) UpdDoctores(i models.DoctoresModel) models.Respuesta {
 		i.Cedula,        // $19
 		i.FechaNacimiento, // $20
 		i.FechaIngreso,    // $21
+		i.Sueldo,          // $22
+		i.FrecuenciaPago,  // $23
+		i.Espec,           // $24
+		i.Tlf,             // $25
 	)
 	if err != nil {
 		rp.Status = 500
@@ -714,6 +718,10 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 				&doctor.Cedula,
 				&doctor.FechaNacimiento,
 				&doctor.FechaIngreso,
+				&doctor.Sueldo,
+				&doctor.FrecuenciaPago,
+				&doctor.Espec,
+				&doctor.Tlf,
 			)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
@@ -761,6 +769,10 @@ func (d *DB) PostDoctor(i models.DoctoresModel) models.Respuesta {
 		i.Cedula,        // $18
 		i.FechaNacimiento, // $19
 		i.FechaIngreso,    // $20
+		i.Sueldo,          // $21
+		i.FrecuenciaPago,  // $22
+		i.Espec,           // $23
+		i.Tlf,             // $24
 	)
 	if err != nil {
 		rp.Status = 501

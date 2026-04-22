@@ -30,6 +30,10 @@ type DoctoresModel struct {
 	Cedula         string          `json:"cedula"`
 	FechaNacimiento string         `json:"fecha_nacimiento"`
 	FechaIngreso    string         `json:"fecha_ingreso"`
+	Sueldo          float64        `json:"sueldo"`
+	FrecuenciaPago  string         `json:"frecuencia_pago"`
+	Espec           string         `json:"espec"`
+	Tlf             string         `json:"tlf"`
 }
 
 // Add String method for DoctoresModel

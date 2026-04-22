@@ -16,19 +16,19 @@ func main() {
 	}
 	defer db.Close()
 
-	fmt.Println("--- Columnas de la tabla medi001.doctores ---")
-	rows, err := db.Query("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'medi001' AND table_name = 'doctores'")
+	rows, err := db.Query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'medi001' AND table_name = 'doctores'")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 
+	fmt.Println("--- Columnas en medi001.doctores ---")
 	for rows.Next() {
-		var name, dataType string
-		err := rows.Scan(&name, &dataType)
+		var name string
+		err := rows.Scan(&name)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("%s (%s)\n", name, dataType)
+		fmt.Println(name)
 	}
 }
