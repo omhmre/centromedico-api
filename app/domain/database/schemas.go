@@ -529,12 +529,15 @@ const sqlDelEmailConfig = `DELETE FROM empre001.emailconfig WHERE id = $1;`
 
 const sqlDelPresupuesto = `DELETE FROM empre001.presupuestos `
 
-const sqlGetDoctores = `select d.id, d.nombres, d.espec, d.dir, d.tlf, d.correo, d.whatsapp, d.instagram, 
-d.tasapago, d.days_of_week, d.start_time, d.end_time, d.slot_duration, d.monto_cita from medi001.doctores d order by d.nombres;`
+const sqlGetDoctores = `select d.id, d.nombres, d.servicios, d.dir, d.correo, d.whatsapp, d.instagram, 
+d.days_of_week, d.start_time, d.end_time, d.slot_duration,
+d.es_medico, d.titulo, d.titulo_academico, d.num_mpps, d.num_cm, d.rif
+from medi001.doctores d order by d.nombres;`
 
 const sqlUpdDoctores = `update medi001.doctores set 
-nombres = $2, espec = $3, dir = $4, tlf = $5, correo = $6, whatsapp = $7, instagram = $8, tasapago = $9,
-days_of_week = $10, start_time = $11, end_time = $12, slot_duration = $13, monto_cita = $14
+nombres = $2, servicios = $3, dir = $4, correo = $5, whatsapp = $6, instagram = $7,
+days_of_week = $8, start_time = $9, end_time = $10, slot_duration = $11,
+es_medico = $12, titulo = $13, titulo_academico = $14, num_mpps = $15, num_cm = $16, rif = $17
 where id = $1;`
 
 const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at
@@ -555,8 +558,9 @@ const sqlUpdPacienteStatus = `UPDATE medi001.pacientes SET status=$2 WHERE id=$1
 const sqlDelPaciente = `DELETE FROM medi001.pacientes WHERE id = $1;`
 
 const sqlPostDoctor = `INSERT INTO medi001.doctores
-(id, nombres, espec, dir, tlf, correo, whatsapp, instagram, tasapago, days_of_week, start_time, end_time, slot_duration, monto_cita)
-VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);`
+(id, nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration,
+es_medico, titulo, titulo_academico, num_mpps, num_cm, rif)
+VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);`
 
 const sqlDelDoctor = `DELETE FROM medi001.doctores WHERE id = $1;`
 
@@ -564,7 +568,7 @@ const sqlGetCitas = `SELECT
     c.id,
     c.iddoctor,
     d.nombres AS especialista,
-    d.espec AS especialidad,
+    c.especialidad AS especialidad,
     c.cedula,
     p.nombres AS paciente,
     c.motivo,
@@ -578,10 +582,13 @@ const sqlGetCitas = `SELECT
     c.montobs,
     c.pagado,
     (c.montoref - c.pagado) AS saldo,
+    c.porcentaje_comision,
     c.group_id,
     c.motivo_cancelacion,
     c.usuario_operacion,
-    c.fecha_operacion
+    c.fecha_operacion,
+    c.usuario_creacion,
+    c.fecha_creacion
 FROM
     medi001.citas c
 LEFT JOIN
@@ -610,19 +617,21 @@ const sqlUpdCita = `UPDATE medi001.citas SET
         group_id = $13,
         motivo_cancelacion = $14,
         usuario_operacion = $15,
-        fecha_operacion = $16
+        fecha_operacion = $16,
+        especialidad = $17,
+        porcentaje_comision = $18
 		WHERE id = $1`
 
 const sqlUpdDiagnostico = `UPDATE medi001.citas SET diagnostico = $1, status = 'Completada' WHERE id = $2`
 
-const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id, motivo_cancelacion, usuario_operacion, fecha_operacion) 
-		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8::float8, $9, $10, $11::float8, ($8::float8 - $11::float8), $12, $13, $14, $15);`
+const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id, motivo_cancelacion, usuario_operacion, fecha_operacion, especialidad, porcentaje_comision, usuario_creacion, fecha_creacion) 
+		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8::float8, $9, $10, $11::float8, ($8::float8 - $11::float8), $12, $13, $14, $15, $16, $17, $18, $19);`
 
 const sqlGetCitaPaciente = `SELECT
     c.id,
     c.iddoctor,
     d.nombres AS especialista,
-    d.espec AS especialidad,
+    c.especialidad AS especialidad,
     c.cedula,
     p.nombres AS paciente,
     c.motivo,
@@ -636,10 +645,13 @@ const sqlGetCitaPaciente = `SELECT
     c.montobs,
     c.pagado,
     (c.montoref - c.pagado) AS saldo,
+    c.porcentaje_comision,
     c.group_id,
     c.motivo_cancelacion,
     c.usuario_operacion,
-    c.fecha_operacion
+    c.fecha_operacion,
+    c.usuario_creacion,
+    c.fecha_creacion
 FROM
     medi001.citas c
 LEFT JOIN
@@ -675,8 +687,8 @@ const sqlGetRelPagos = `SELECT
     c.saldo AS saldo_cita,
     c.status AS status_cita,
     c.montoref AS monto_facturado_cita,
-    d.tasapago AS porcentaje_pago_doctor, 
-    (SUM(pay.amount) * (d.tasapago / 100.0)) AS monto_correspondiente_doctor
+    c.porcentaje_comision AS porcentaje_pago_doctor, 
+    (SUM(pay.amount) * (c.porcentaje_comision / 100.0)) AS monto_correspondiente_doctor
 FROM medi001.citas c
 JOIN medi001.doctores d ON c.iddoctor = d.id
 left JOIN medi001.payments pay ON c.id = pay.appointmentid
@@ -688,7 +700,7 @@ GROUP BY
     paci.nombres, 
     pay.date,
     c.id, 
-    d.tasapago, 
+    c.porcentaje_comision, 
     c.saldo,
     c.status,
     c.montoref
@@ -726,7 +738,7 @@ SELECT
     c.id,
     c.iddoctor,
     d.nombres AS especialista,
-    d.espec AS especialidad,
+    c.especialidad AS especialidad,
     c.cedula,
     p.nombres AS paciente,
     c.motivo,
@@ -740,10 +752,13 @@ SELECT
     c.montobs,
     c.pagado,
     (c.montoref - c.pagado) AS saldo,
+    c.porcentaje_comision,
     c.group_id,
     c.motivo_cancelacion,
     c.usuario_operacion,
-    c.fecha_operacion
+    c.fecha_operacion,
+    c.usuario_creacion,
+    c.fecha_creacion
 FROM
     medi001.citas c
 LEFT JOIN
@@ -874,7 +889,7 @@ const sqlPostSignosVitales = `INSERT INTO medi001.paciente_signos_vitales
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
 
 const sqlGetMedicalHistoryTimeline = `
-(SELECT fecha, 'Consulta' as tipo, CASE WHEN (contenido IS NOT NULL AND contenido != '') THEN SUBSTRING(contenido, 1, 200) ELSE evolucion END as detalle, (SELECT nombres FROM medi001.doctores WHERE id = id_doctor) as doctor, (SELECT espec FROM medi001.doctores WHERE id = id_doctor) as especialidad, id as id_referencia
+(SELECT fecha, 'Consulta' as tipo, CASE WHEN (contenido IS NOT NULL AND contenido != '') THEN SUBSTRING(contenido, 1, 200) ELSE evolucion END as detalle, COALESCE((SELECT nombres FROM medi001.doctores WHERE id = id_doctor), '') as doctor, COALESCE((SELECT espec FROM medi001.doctores WHERE id = id_doctor), '') as especialidad, id as id_referencia
  FROM medi001.informe_medico WHERE id_paciente = $1)
 
 UNION ALL
@@ -882,8 +897,14 @@ UNION ALL
  FROM medi001.paciente_signos_vitales WHERE id_paciente = $1)
 ORDER BY fecha DESC;`
 
-const sqlGetInformesMedico = `SELECT id, id_paciente, fecha, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, contenido, entregado, fecha_entrega, modificado_post_entrega, usuario_operacion 
-FROM medi001.informe_medico WHERE id_paciente = $1 ORDER BY fecha DESC;`
+const sqlGetInformesMedico = `SELECT i.id, i.id_paciente, i.fecha, i.id_doctor, i.id_cita, i.diagnostico, i.evolucion, i.plan, i.recomendaciones, i.contenido, i.entregado, i.fecha_entrega, i.modificado_post_entrega, i.usuario_operacion,
+COALESCE(d.nombres, '') as doctor_nombre, COALESCE(d.espec, '') as doctor_espec,
+COALESCE(d.es_medico, false) as es_medico, COALESCE(d.titulo, '') as doctor_titulo, 
+COALESCE(d.titulo_academico, '') as doctor_titulo_academico, COALESCE(d.num_mpps, '') as doctor_mpps, 
+COALESCE(d.num_cm, '') as doctor_cm, COALESCE(d.rif, '') as doctor_rif
+FROM medi001.informe_medico i
+LEFT JOIN medi001.doctores d ON i.id_doctor = d.id
+WHERE i.id_paciente = $1 ORDER BY i.fecha DESC;`
 
 
 const sqlPostInformeMedico = `INSERT INTO medi001.informe_medico 

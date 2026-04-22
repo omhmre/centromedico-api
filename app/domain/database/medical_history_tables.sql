@@ -42,5 +42,15 @@ CREATE TABLE IF NOT EXISTS medi001.informe_medico (
     evolucion TEXT,
     plan TEXT,
     recomendaciones TEXT,
+    contenido TEXT,
+    entregado BOOLEAN DEFAULT FALSE,
+    fecha_entrega TIMESTAMP,
+    modificado_post_entrega BOOLEAN DEFAULT FALSE,
     usuario_operacion VARCHAR(50)
 );
+
+-- Migraciones para tablas existentes que no tengan las columnas nuevas
+ALTER TABLE medi001.informe_medico ADD COLUMN IF NOT EXISTS contenido TEXT;
+ALTER TABLE medi001.informe_medico ADD COLUMN IF NOT EXISTS entregado BOOLEAN DEFAULT FALSE;
+ALTER TABLE medi001.informe_medico ADD COLUMN IF NOT EXISTS fecha_entrega TIMESTAMP;
+ALTER TABLE medi001.informe_medico ADD COLUMN IF NOT EXISTS modificado_post_entrega BOOLEAN DEFAULT FALSE;

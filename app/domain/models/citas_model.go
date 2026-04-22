@@ -21,14 +21,17 @@ type CitaModel struct {
 	Montoref     float64   `json:"montoref"`
 	Tasa         float64   `json:"tasa"`
 	Montobs      float64   `json:"montobs"`
-	Pagado       float64   `json:"pagado"`
-	Saldo        float64   `json:"saldo"`
+	Pagado            float64   `json:"pagado"`
+	Saldo             float64   `json:"saldo"`
+	PorcentajeComision float64  `json:"porcentaje_comision"`
 	GroupID      *string   `json:"group_id,omitempty"`
 	Weeks             int        `json:"weeks"`
 	UpdateSeries      bool       `json:"update_series"`
 	MotivoCancelacion *string    `json:"motivo_cancelacion"`
 	UsuarioOperacion  *string    `json:"usuario_operacion"`
 	FechaOperacion    *time.Time `json:"fecha_operacion,omitempty"`
+	UsuarioCreacion   *string    `json:"usuario_creacion"`
+	FechaCreacion     *time.Time `json:"fecha_creacion,omitempty"`
 }
 
 // Add String method for CitaModel

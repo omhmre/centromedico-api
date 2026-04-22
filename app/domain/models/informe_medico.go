@@ -20,6 +20,14 @@ type InformeMedico struct {
 	FechaEntrega          *time.Time `json:"fecha_entrega"`
 	ModificadoPostEntrega bool       `json:"modificado_post_entrega"`
 	UsuarioOperacion      string     `json:"usuario_operacion"`
+	DoctorNombre   string `json:"doctor_nombre"`
+	DoctorEspec    string `json:"doctor_espec"`
+	EsMedico       bool   `json:"es_medico"`
+	DoctorTitulo   string `json:"doctor_titulo"`
+	DoctorTituloAcademico string `json:"doctor_titulo_academico"`
+	DoctorMPPS     string `json:"doctor_mpps"`
+	DoctorCM       string `json:"doctor_cm"`
+	DoctorRIF      string `json:"doctor_rif"`
 }
 
 

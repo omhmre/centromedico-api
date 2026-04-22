@@ -732,7 +732,7 @@ func (a *App) PostInformeMedico() http.HandlerFunc {
 		var i models.InformeMedico
 		err := json.NewDecoder(r.Body).Decode(&i)
 		if err != nil {
-			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Datos inválidos"}, 400)
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Datos inválidos: " + err.Error()}, 400)
 			return
 		}
 		resp := a.DB.PostInformeMedico(i)

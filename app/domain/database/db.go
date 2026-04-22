@@ -630,22 +630,26 @@ func (d *DB) DelPrecioEspecialidad(p models.PrecioEspecialidad) models.Respuesta
 
 func (d *DB) UpdDoctores(i models.DoctoresModel) models.Respuesta {
 	var rp models.Respuesta
+	serviciosJson, _ := json.Marshal(i.Servicios)
 	daysOfWeekJson, _ := json.Marshal(i.DaysOfWeek)
 	resp, err := d.db.Exec(sqlUpdDoctores, 
 		i.Id,           // $1
 		i.Nombres,      // $2
-		i.Espec,        // $3
+		string(serviciosJson), // $3
 		i.Dir,          // $4
-		i.Tlf,          // $5
-		i.Correo,       // $6
-		i.Whatsapp,     // $7
-		i.Instagram,    // $8
-		i.Tasapago,     // $9
-		string(daysOfWeekJson), // $10 (days_of_week as JSON string)
-		i.StartTime,    // $11
-		i.EndTime,      // $12
-		i.SlotDuration, // $13
-		i.MontoCita,    // $14
+		i.Correo,       // $5
+		i.Whatsapp,     // $6
+		i.Instagram,    // $7
+		string(daysOfWeekJson), // $8
+		i.StartTime,    // $9
+		i.EndTime,      // $10
+		i.SlotDuration, // $11
+		i.EsMedico,     // $12
+		i.Titulo,       // $13
+		i.TituloAcademico, // $14
+		i.NumMPPS,      // $15
+		i.NumCM,        // $16
+		i.Rif,           // $17
 	)
 	if err != nil {
 		rp.Status = 500
@@ -673,7 +677,7 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 	rows, err := d.db.Query(sqlGetDoctores)
 	if err != nil {
 		rp.Status = 502
-		rp.Mensaje = "No Hay Productos Registrados! " + err.Error()
+		rp.Mensaje = "No Hay Especialistas Registrados! " + err.Error()
 		// utils.CreateLog(err.Error())
 		return nil, rp
 	}
@@ -682,23 +686,38 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 	doctor := models.DoctoresModel{}
 	for rows.Next() {
 		var daysOfWeekRaw []byte
+		var serviciosRaw []byte
 		err2 :=
 			rows.Scan(
 				&doctor.Id,
 				&doctor.Nombres,
-				&doctor.Espec,
+				&serviciosRaw,
 				&doctor.Dir,
-				&doctor.Tlf,
 				&doctor.Correo,
 				&doctor.Whatsapp,
 				&doctor.Instagram,
-				&doctor.Tasapago,
 				&daysOfWeekRaw,
 				&doctor.StartTime,
 				&doctor.EndTime,
 				&doctor.SlotDuration,
-				&doctor.MontoCita,
+				&doctor.EsMedico,
+				&doctor.Titulo,
+				&doctor.TituloAcademico,
+				&doctor.NumMPPS,
+				&doctor.NumCM,
+				&doctor.Rif,
 			)
+		if err2 != nil {
+			utils.CreateLog(err2.Error())
+		}
+		if daysOfWeekRaw != nil {
+			json.Unmarshal(daysOfWeekRaw, &doctor.DaysOfWeek)
+		} else {
+			doctor.DaysOfWeek = []int{1, 2, 3, 4, 5} // Fallback to default
+		}
+		if serviciosRaw != nil {
+			json.Unmarshal(serviciosRaw, &doctor.Servicios)
+		}
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
 		}
@@ -719,21 +738,25 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 
 func (d *DB) PostDoctor(i models.DoctoresModel) models.Respuesta {
 	var rp models.Respuesta
+	serviciosJson, _ := json.Marshal(i.Servicios)
 	daysOfWeekJson, _ := json.Marshal(i.DaysOfWeek)
 	resp, err := d.db.Exec(sqlPostDoctor, 
 		i.Nombres,      // $1
-		i.Espec,        // $2
+		string(serviciosJson), // $2
 		i.Dir,          // $3
-		i.Tlf,          // $4
-		i.Correo,       // $5
-		i.Whatsapp,     // $6
-		i.Instagram,    // $7
-		i.Tasapago,     // $8
-		string(daysOfWeekJson), // $9
-		i.StartTime,    // $10
-		i.EndTime,      // $11
-		i.SlotDuration, // $12
-		i.MontoCita,    // $13
+		i.Correo,       // $4
+		i.Whatsapp,     // $5
+		i.Instagram,    // $6
+		string(daysOfWeekJson), // $7
+		i.StartTime,    // $8
+		i.EndTime,      // $9
+		i.SlotDuration, // $10
+		i.EsMedico,     // $11
+		i.Titulo,       // $12
+		i.TituloAcademico, // $13
+		i.NumMPPS,      // $14
+		i.NumCM,        // $15
+		i.Rif,           // $16
 	)
 	if err != nil {
 		rp.Status = 501
@@ -772,7 +795,7 @@ func (d *DB) DelDoctor(i models.DoctoresModel) models.Respuesta {
 		rp.Status = 200
 	} else {
 		rp.Status = 201
-		rp.Mensaje = "No se agrego producto!"
+		rp.Mensaje = "No se encontró el Especialista para eliminar!"
 	}
 	return rp
 }
@@ -3954,6 +3977,13 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 	totalCitasAgregadas := 0
 	// Por cada cita "base" que se recibe, se genera una serie recurrente.
 	for _, citaBase := range citas {
+		if citaBase.IdDoctor == 0 || citaBase.Cedula == "" {
+			tx.Rollback()
+			rp.Status = 400
+			rp.Mensaje = "Error: El especialista (ID Doctor) y el paciente (Cédula) son obligatorios para agendar la cita."
+			utils.CreateLog("Intento de crear cita con datos incompletos: " + fmt.Sprintf("%+v", citaBase))
+			return rp
+		}
 		// Generar la serie para 1 aÃ±o.
 		// newUUID := uuid.New().String()
 		// groupID := &newUUID
@@ -3975,10 +4005,13 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 			nuevaCita.Inicio = citaBase.Inicio.AddDate(0, 0, 7*i)
 			nuevaCita.Fin = citaBase.Fin.AddDate(0, 0, 7*i)
 			nuevaCita.GroupID = groupID
+			nuevaCita.UsuarioCreacion = citaBase.UsuarioOperacion
+			nuevaCita.FechaCreacion = citaBase.FechaOperacion
 
 			_, err := tx.Exec(sqlPostCita, nuevaCita.IdDoctor, nuevaCita.Cedula, nuevaCita.Motivo, nuevaCita.Inicio, nuevaCita.Fin, nuevaCita.Status, nuevaCita.Color,
 				nuevaCita.Montoref, nuevaCita.Tasa, nuevaCita.Montobs, nuevaCita.Pagado, nuevaCita.GroupID, nuevaCita.MotivoCancelacion, 
-				nuevaCita.UsuarioOperacion, nuevaCita.FechaOperacion)
+				nuevaCita.UsuarioOperacion, nuevaCita.FechaOperacion, nuevaCita.Especialidad, nuevaCita.PorcentajeComision, 
+				nuevaCita.UsuarioCreacion, nuevaCita.FechaCreacion)
 			if err != nil {
 				tx.Rollback()
 				rp.Status = 500
@@ -4005,6 +4038,12 @@ func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 	var rp models.Respuesta
 
+	if cita.IdDoctor == 0 || cita.Cedula == "" {
+		rp.Status = 400
+		rp.Mensaje = "Error: El especialista (ID Doctor) y el paciente (Cédula) son obligatorios para actualizar la cita."
+		return rp
+	}
+
 	// Si se solicita actualizar la serie y existe un GroupID vÃ¡lido
 	if cita.UpdateSeries && cita.GroupID != nil && *cita.GroupID != "" {
 		// 1. Obtener la cita original para calcular el desplazamiento de tiempo (si hubo cambio de hora)
@@ -4027,14 +4066,15 @@ func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 			SET iddoctor=$1, cedula=$2, motivo=$3, status=$4, color=$5, montoref=$6, tasa=$7, montobs=$8, pagado=$9, 
 				inicio = inicio + $10::interval, 
 				fin = fin + $10::interval,
-				motivo_cancelacion = $12, usuario_operacion = $13, fecha_operacion = $14
+				motivo_cancelacion = $12, usuario_operacion = $13, fecha_operacion = $14,
+				especialidad = $15, porcentaje_comision = $16
 			WHERE group_id=$11`
 
 		res, err := d.db.Exec(sqlUpdCitaSeries,
 			cita.IdDoctor, cita.Cedula, cita.Motivo, cita.Status,
 			cita.Color, cita.Montoref, cita.Tasa, cita.Montobs, cita.Pagado,
 			intervalStr, cita.GroupID, cita.MotivoCancelacion, 
-			cita.UsuarioOperacion, cita.FechaOperacion)
+			cita.UsuarioOperacion, cita.FechaOperacion, cita.Especialidad, cita.PorcentajeComision)
 
 		if err != nil {
 			rp.Status = 500
@@ -4051,7 +4091,7 @@ func (d *DB) UpdateCita(cita models.CitaModel) models.Respuesta {
 	// Comportamiento original: Actualizar solo la cita individual
 	_, err := d.db.Exec(sqlUpdCita, cita.Id, cita.IdDoctor, cita.Cedula, cita.Motivo, cita.Inicio, cita.Fin, cita.Status,
 		cita.Color, cita.Montoref, cita.Tasa, cita.Montobs, cita.Pagado, cita.GroupID, cita.MotivoCancelacion, 
-		cita.UsuarioOperacion, cita.FechaOperacion)
+		cita.UsuarioOperacion, cita.FechaOperacion, cita.Especialidad, cita.PorcentajeComision)
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "Error al actualizar cita: " + err.Error()
@@ -4095,8 +4135,8 @@ func (d *DB) GetCitas() ([]models.CitaModel, models.Respuesta) {
 
 	for rows.Next() {
 		var cita models.CitaModel
-		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion sql.NullString
-		var fechaOperacion sql.NullTime
+		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion, usuarioCreacion sql.NullString
+		var fechaOperacion, fechaCreacion sql.NullTime
 
 		err := rows.Scan(
 			&cita.Id,
@@ -4116,10 +4156,13 @@ func (d *DB) GetCitas() ([]models.CitaModel, models.Respuesta) {
 			&cita.Montobs,
 			&cita.Pagado,
 			&cita.Saldo,
+			&cita.PorcentajeComision,
 			&groupID,
 			&motivoCancelacion,
 			&usuarioOperacion,
 			&fechaOperacion,
+			&usuarioCreacion,
+			&fechaCreacion,
 		)
 		if err != nil {
 			rp.Status = 500
@@ -4150,6 +4193,12 @@ func (d *DB) GetCitas() ([]models.CitaModel, models.Respuesta) {
 		}
 		if fechaOperacion.Valid {
 			cita.FechaOperacion = &fechaOperacion.Time
+		}
+		if usuarioCreacion.Valid {
+			cita.UsuarioCreacion = &usuarioCreacion.String
+		}
+		if fechaCreacion.Valid {
+			cita.FechaCreacion = &fechaCreacion.Time
 		}
 
 		citas = append(citas, cita)
@@ -4333,8 +4382,8 @@ func (d *DB) GetCitasPaciente(p models.PacientesModel) ([]models.CitaModel, mode
 
 	for rows.Next() {
 		var cita models.CitaModel
-		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion sql.NullString
-		var fechaOperacion sql.NullTime
+		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion, usuarioCreacion sql.NullString
+		var fechaOperacion, fechaCreacion sql.NullTime
 
 		err := rows.Scan(
 			&cita.Id,
@@ -4354,10 +4403,13 @@ func (d *DB) GetCitasPaciente(p models.PacientesModel) ([]models.CitaModel, mode
 			&cita.Montobs,
 			&cita.Pagado,
 			&cita.Saldo,
+			&cita.PorcentajeComision,
 			&groupID,
 			&motivoCancelacion,
 			&usuarioOperacion,
 			&fechaOperacion,
+			&usuarioCreacion,
+			&fechaCreacion,
 		)
 		if err != nil {
 			rp.Status = 500
@@ -4388,6 +4440,12 @@ func (d *DB) GetCitasPaciente(p models.PacientesModel) ([]models.CitaModel, mode
 		}
 		if fechaOperacion.Valid {
 			cita.FechaOperacion = &fechaOperacion.Time
+		}
+		if usuarioCreacion.Valid {
+			cita.UsuarioCreacion = &usuarioCreacion.String
+		}
+		if fechaCreacion.Valid {
+			cita.FechaCreacion = &fechaCreacion.Time
 		}
 
 		citas = append(citas, cita)
@@ -4615,8 +4673,8 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 
 	for rows.Next() {
 		var cita models.CitaModel
-		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion sql.NullString
-		var fechaOperacion sql.NullTime
+		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion, usuarioCreacion sql.NullString
+		var fechaOperacion, fechaCreacion sql.NullTime
 
 		err := rows.Scan(
 			&cita.Id,
@@ -4636,10 +4694,13 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 			&cita.Montobs,
 			&cita.Pagado,
 			&cita.Saldo,
+			&cita.PorcentajeComision,
 			&groupID,
 			&motivoCancelacion,
 			&usuarioOperacion,
 			&fechaOperacion,
+			&usuarioCreacion,
+			&fechaCreacion,
 		)
 		if err != nil {
 			rp.Status = 500
@@ -4670,6 +4731,12 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
 		}
 		if fechaOperacion.Valid {
 			cita.FechaOperacion = &fechaOperacion.Time
+		}
+		if usuarioCreacion.Valid {
+			cita.UsuarioCreacion = &usuarioCreacion.String
+		}
+		if fechaCreacion.Valid {
+			cita.FechaCreacion = &fechaCreacion.Time
 		}
 
 		citas = append(citas, cita)
@@ -4761,10 +4828,17 @@ func (d *DB) GetMedicalHistoryTimeline(idPaciente int) ([]models.HistoryTimeline
 	defer rows.Close()
 	for rows.Next() {
 		var i models.HistoryTimelineItem
-		err := rows.Scan(&i.Fecha, &i.Tipo, &i.Detalle, &i.Doctor, &i.Especialidad, &i.IdReferencia)
+		var doctor, espec sql.NullString
+		err := rows.Scan(&i.Fecha, &i.Tipo, &i.Detalle, &doctor, &espec, &i.IdReferencia)
 		if err != nil {
 			utils.CreateLog("Error scanning timeline: " + err.Error())
 			continue
+		}
+		if doctor.Valid {
+			i.Doctor = doctor.String
+		}
+		if espec.Valid {
+			i.Especialidad = espec.String
 		}
 		results = append(results, i)
 	}
@@ -4819,7 +4893,9 @@ func (d *DB) GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.R
 			&id, &idPac, &i.Fecha, &idDoc, &idCita,
 			&i.Diagnostico, &i.Evolucion, &i.Plan, &i.Recomendaciones,
 			&i.Contenido, &i.Entregado, &fEntrega, &i.ModificadoPostEntrega,
-			&i.UsuarioOperacion,
+			&i.UsuarioOperacion, &i.DoctorNombre, &i.DoctorEspec,
+			&i.EsMedico, &i.DoctorTitulo, &i.DoctorTituloAcademico,
+			&i.DoctorMPPS, &i.DoctorCM, &i.DoctorRIF,
 		)
 		if err != nil {
 			utils.CreateLog("Error scanning medical report: " + err.Error())
@@ -4891,6 +4967,7 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 		if err != nil {
 			rp.Status = 500
 			rp.Mensaje = "Error al actualizar informe médico: " + err.Error()
+			utils.CreateLog("DB.PostInformeMedico (Update): " + rp.Mensaje)
 			return rp
 		}
 		rp.Status = 200
@@ -4911,6 +4988,7 @@ func (d *DB) PostInformeMedico(i models.InformeMedico) models.Respuesta {
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "Error al guardar informe médico: " + err.Error()
+		utils.CreateLog("DB.PostInformeMedico: " + rp.Mensaje)
 		return rp
 	}
 	rp.Status = 200
