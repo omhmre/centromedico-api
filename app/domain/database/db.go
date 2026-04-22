@@ -662,19 +662,22 @@ func (d *DB) UpdDoctores(i models.DoctoresModel) models.Respuesta {
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "No se pudo Actualizar la Informacion de Doctores. " + err.Error()
-		utils.CreateLog(err.Error())
+		utils.CreateLog("ERROR SQL UpdDoctores: " + err.Error())
 		return rp
 	}
 	datos, err1 := resp.RowsAffected()
 	if err1 != nil {
 		rp.Status = 502
 		rp.Mensaje = err1.Error()
+		utils.CreateLog("ERROR RowsAffected UpdDoctores: " + err1.Error())
 	} else if datos > 0 {
 		rp.Mensaje = strconv.FormatInt(datos, 10) + " Registros Actualizados Correctamente"
 		rp.Status = 200
+		utils.CreateLog(fmt.Sprintf("EXITO UpdDoctores: ID %d actualizado. Filas afectadas: %d", i.Id, datos))
 	} else {
 		rp.Status = 201
 		rp.Mensaje = "No se encontro ningun registro con los datos proporcionados!"
+		utils.CreateLog(fmt.Sprintf("ADVERTENCIA UpdDoctores: No se encontró el doctor con ID %d (0 filas afectadas)", i.Id))
 	}
 	return rp
 }
@@ -776,20 +779,23 @@ func (d *DB) PostDoctor(i models.DoctoresModel) models.Respuesta {
 	)
 	if err != nil {
 		rp.Status = 501
-		rp.Mensaje = "No se pudo Agregar la Informacion del Especialista. " + err.Error()
-		utils.CreateLog("No se pudo Agregar la Informacion del Especialista. " + err.Error())
+		rp.Mensaje = "No se pudo Agregar la Informacion de Doctores. " + err.Error()
+		utils.CreateLog("ERROR SQL PostDoctor: " + err.Error())
 		return rp
 	}
 	datos, err1 := resp.RowsAffected()
 	if err1 != nil {
 		rp.Status = 502
 		rp.Mensaje = err1.Error()
+		utils.CreateLog("ERROR RowsAffected PostDoctor: " + err1.Error())
 	} else if datos > 0 {
 		rp.Status = 200
 		rp.Mensaje = strconv.FormatInt(datos, 10) + " Especialista Agregado Correctamente"
+		utils.CreateLog(fmt.Sprintf("EXITO PostDoctor: %s agregado correctamente. Filas afectadas: %d", i.Nombres, datos))
 	} else {
 		rp.Status = 201
-		rp.Mensaje = "No se encontro ningun registro con los datos proporcionados!"
+		rp.Mensaje = "No se pudo insertar el registro (0 filas afectadas)"
+		utils.CreateLog("ADVERTENCIA PostDoctor: 0 filas afectadas")
 	}
 	return rp
 }

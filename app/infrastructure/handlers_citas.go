@@ -173,12 +173,18 @@ func (a *App) UpdateDoctores() http.HandlerFunc {
 			sendResponse(w, r, respuesta, http.StatusBadRequest)
 			return
 		}
-		utils.CreateLog(fmt.Sprintf("Actualizando doctor ID: %d, Nombres: %s, EsMedico: %v, Titulo: %s, RIF: %s", doctor.Id, doctor.Nombres, doctor.EsMedico, doctor.Titulo, doctor.Rif))
+		utils.CreateLog(fmt.Sprintf("Actualizando doctor ID: %d, Nombres: %s, EsMedico: %v, Titulo: %s, RIF: %s, Especialidad: %s, MontoCita: %f", 
+			doctor.Id, doctor.Nombres, doctor.EsMedico, doctor.Titulo, doctor.Rif, doctor.Espec, doctor.MontoCita))
+		
 		rp := a.DB.UpdDoctores(doctor)
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
+		} else if rp.Status == 201 {
+			// Si el status es 201 significa que no se encontró el registro (0 filas afectadas)
+			sendResponse(w, r, rp, http.StatusNotFound)
 		} else {
 			// Notificar a todos los clientes sobre el cambio
+			// Se usa PACIENTES_UPDATED por consistencia con otros módulos que refrescan vistas generales
 			a.broadcastEvent("PACIENTES_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
@@ -355,11 +361,15 @@ func (a *App) PostDoctor() http.HandlerFunc {
 			sendResponse(w, r, respuesta, http.StatusBadRequest)
 			return
 		}
-		utils.CreateLog(fmt.Sprintf("Creando doctor: %s, EsMedico: %v, Titulo: %s, RIF: %s", doctor.Nombres, doctor.EsMedico, doctor.Titulo, doctor.Rif))
+		utils.CreateLog(fmt.Sprintf("Creando doctor: %s, EsMedico: %v, Titulo: %s, RIF: %s, Especialidad: %s, MontoCita: %f", 
+			doctor.Nombres, doctor.EsMedico, doctor.Titulo, doctor.Rif, doctor.Espec, doctor.MontoCita))
+		
 		rp := a.DB.PostDoctor(doctor)
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
+			// Notificar a todos los clientes
+			a.broadcastEvent("PACIENTES_UPDATED", nil)
 			sendResponse(w, r, rp, http.StatusOK)
 		}
 	}
