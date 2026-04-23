@@ -150,6 +150,7 @@ func (a *App) GetDoctores() http.HandlerFunc {
 			rp.Mensaje = "Error Cargando Doctores"
 			utils.CreateLog("Error al obteniendo los doctores: " + err.Mensaje)
 		}
+		utils.CreateLog(fmt.Sprintf("Enviando %d doctores al frontend", len(datos)))
 		rp.Status = 10
 		rp.Mensaje = "Doctores listados correctamente!"
 
@@ -173,6 +174,7 @@ func (a *App) UpdateDoctores() http.HandlerFunc {
 			sendResponse(w, r, respuesta, http.StatusBadRequest)
 			return
 		}
+		utils.CreateLog(fmt.Sprintf("JSON Recibido en UpdateDoctores: %+v", doctor))
 		utils.CreateLog(fmt.Sprintf("Actualizando doctor ID: %d, Nombres: %s, EsMedico: %v, Titulo: %s, RIF: %s, Especialidad: %s, MontoCita: %f", 
 			doctor.Id, doctor.Nombres, doctor.EsMedico, doctor.Titulo, doctor.Rif, doctor.Espec, doctor.MontoCita))
 		

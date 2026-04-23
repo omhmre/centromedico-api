@@ -23,6 +23,9 @@ type PacientesModel struct {
 	Especialistas []EspecialistaAtencion `json:"especialistas,omitempty"`
 	Precios       []PrecioEspecialidad   `json:"precios,omitempty"`
 	Pagos         []Payments             `json:"pagos,omitempty"`
+	IsBlacklisted bool                   `json:"is_blacklisted"`
+	BlacklistReason *string              `json:"blacklist_reason,omitempty"`
+	BlacklistDate *time.Time             `json:"blacklist_date,omitempty"`
 }
 
 // PrecioEspecialidad representa un precio personalizado para un paciente en una especialidad específica.

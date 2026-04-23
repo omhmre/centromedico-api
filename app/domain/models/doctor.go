@@ -32,8 +32,11 @@ type DoctoresModel struct {
 	FechaIngreso    string         `json:"fecha_ingreso"`
 	Sueldo          float64        `json:"sueldo"`
 	FrecuenciaPago  string         `json:"frecuencia_pago"`
-	Espec           string         `json:"espec"`
-	Tlf             string         `json:"tlf"`
+	Espec           string          `json:"espec"`
+	Tlf             string          `json:"tlf"`
+	Activo          bool            `json:"activo"`
+	FechaRetiro     string          `json:"fecha_retiro"`
+	MotivoRetiro    string          `json:"motivo_retiro"`
 }
 
 // Add String method for DoctoresModel

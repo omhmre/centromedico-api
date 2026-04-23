@@ -389,6 +389,9 @@ func (d *DB) UpdPaciente(i models.PacientesModel) models.Respuesta {
 		i.Correo,        // $10
 		i.Diagnostico,   // $11
 		i.CXC,           // $12
+		i.IsBlacklisted, // $13
+		i.BlacklistReason, // $14
+		i.BlacklistDate,   // $15
 	)
 	if err != nil {
 		rp.Status = 500
@@ -476,7 +479,7 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 	var newID int
 	// La consulta de inserciÃ³n devuelve el nuevo ID. Usamos QueryRow para capturarlo.
 	err = tx.QueryRow(sqlPostPaciente, i.Cedula, i.Nombres, i.Fenac, i.Matricula, i.Status, i.Representante, i.Whatsapp,
-		i.Direccion, i.Correo, i.Diagnostico, i.CXC, i.CreatedAt).Scan(&newID)
+		i.Direccion, i.Correo, i.Diagnostico, i.CXC, i.CreatedAt, i.IsBlacklisted, i.BlacklistReason, i.BlacklistDate).Scan(&newID)
 
 	if err != nil {
 		tx.Rollback() // Revertir la transacciÃ³n en caso de error
@@ -547,6 +550,9 @@ func (d *DB) GetPacientes() ([]models.PacientesModel, models.Respuesta) {
 			&paciente.Diagnostico,
 			&paciente.CXC,
 			&paciente.CreatedAt,
+			&paciente.IsBlacklisted,
+			&paciente.BlacklistReason,
+			&paciente.BlacklistDate,
 		)
 		if err != nil {
 			rp.Status = 500
@@ -658,6 +664,9 @@ func (d *DB) UpdDoctores(i models.DoctoresModel) models.Respuesta {
 		i.FrecuenciaPago,  // $23
 		i.Espec,           // $24
 		i.Tlf,             // $25
+		i.Activo,          // $26
+		i.FechaRetiro,     // $27
+		i.MotivoRetiro,    // $28
 	)
 	if err != nil {
 		rp.Status = 500
@@ -725,6 +734,9 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 				&doctor.FrecuenciaPago,
 				&doctor.Espec,
 				&doctor.Tlf,
+				&doctor.Activo,
+				&doctor.FechaRetiro,
+				&doctor.MotivoRetiro,
 			)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
@@ -776,6 +788,9 @@ func (d *DB) PostDoctor(i models.DoctoresModel) models.Respuesta {
 		i.FrecuenciaPago,  // $22
 		i.Espec,           // $23
 		i.Tlf,             // $24
+		i.Activo,          // $25
+		i.FechaRetiro,     // $26
+		i.MotivoRetiro,    // $27
 	)
 	if err != nil {
 		rp.Status = 501
