@@ -18,11 +18,12 @@ type PacientesModel struct {
 	Correo        *string                `json:"correo,omitempty"`
 	Diagnostico   *string                `json:"diagnostico,omitempty"`
 	CXC           float64                `json:"cxc"`
-	CreatedAt     time.Time              `json:"createdAt"`
-	Citas         []CitaModel            `json:"citas,omitempty"`
-	Especialistas []EspecialistaAtencion `json:"especialistas,omitempty"`
-	Precios       []PrecioEspecialidad   `json:"precios,omitempty"`
-	Pagos         []Payments             `json:"pagos,omitempty"`
+	CreatedAt       time.Time              `json:"createdAt"`
+	LastPaymentDate *time.Time             `json:"lastPaymentDate,omitempty"`
+	Citas           []CitaModel            `json:"citas,omitempty"`
+	Especialistas   []EspecialistaAtencion `json:"especialistas,omitempty"`
+	Precios         []PrecioEspecialidad   `json:"precios,omitempty"`
+	Pagos           []Payments             `json:"pagos,omitempty"`
 	IsBlacklisted bool                   `json:"is_blacklisted"`
 	BlacklistReason *string              `json:"blacklist_reason,omitempty"`
 	BlacklistDate *time.Time             `json:"blacklist_date,omitempty"`

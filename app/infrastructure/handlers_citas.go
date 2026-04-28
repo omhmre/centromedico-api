@@ -235,6 +235,7 @@ func (a *App) UpdPaciente() http.HandlerFunc {
 		var paciente models.PacientesModel
 		err := json.NewDecoder(r.Body).Decode(&paciente)
 		if err != nil {
+			utils.CreateLog(fmt.Sprintf("[UpdPaciente] Error decoding JSON: %v", err))
 			respuesta := models.Respuesta{
 				Status:  http.StatusBadRequest,
 				Mensaje: "Cuerpo de la solicitud inválido: " + err.Error(),
@@ -256,6 +257,7 @@ func (a *App) UpdPacienteMatricula() http.HandlerFunc {
 		var paciente models.PacientesModel
 		err := json.NewDecoder(r.Body).Decode(&paciente)
 		if err != nil {
+			utils.CreateLog(fmt.Sprintf("[UpdPacienteMatricula] Error decoding JSON: %v", err))
 			respuesta := models.Respuesta{
 				Status:  http.StatusBadRequest,
 				Mensaje: "Cuerpo de la solicitud inválido: " + err.Error(),
@@ -288,6 +290,7 @@ func (a *App) UpdPacienteStatus() http.HandlerFunc {
 		var paciente models.PacientesModel
 		err := json.NewDecoder(r.Body).Decode(&paciente)
 		if err != nil {
+			utils.CreateLog(fmt.Sprintf("[UpdPacienteStatus] Error decoding JSON: %v", err))
 			respuesta := models.Respuesta{
 				Status:  http.StatusBadRequest,
 				Mensaje: "Cuerpo de la solicitud inválido: " + err.Error(),
