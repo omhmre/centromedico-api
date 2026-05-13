@@ -4628,7 +4628,7 @@ func (d *DB) FetchExchangeRate() (float64, models.Respuesta) {
 	rp.Status = 500 // Default to error
 
 	// The API URL provided by the user
-	urlTasa := "https://api.exchangerate-api.com/v4/latest/USD"
+	urlTasa := "https://ve.dolarapi.com/v1/dolares/oficial"
 
 	resp, err := http.Get(urlTasa)
 	if err != nil {
@@ -4646,7 +4646,7 @@ func (d *DB) FetchExchangeRate() (float64, models.Respuesta) {
 	}
 
 	var apiResponse struct {
-		Rates map[string]float64 `json:"rates"`
+		Promedio float64 `json:"promedio"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&apiResponse); err != nil {
@@ -4655,15 +4655,14 @@ func (d *DB) FetchExchangeRate() (float64, models.Respuesta) {
 		return 0, rp
 	}
 
-	vesRate, ok := apiResponse.Rates["VES"]
-	if !ok {
-		rp.Mensaje = "Tasa VES no encontrada en la respuesta del API."
+	if apiResponse.Promedio <= 0 {
+		rp.Mensaje = "Tasa VES no válida o no encontrada en la respuesta del API."
 		utils.CreateLog(rp.Mensaje)
 		return 0, rp
 	}
 
 	// Round the rate to 2 decimal places as requested
-	roundedRate := roundFloat(vesRate, 2)
+	roundedRate := roundFloat(apiResponse.Promedio, 2)
 
 	rp.Status = 200
 	rp.Mensaje = "Tasa de cambio obtenida exitosamente."
