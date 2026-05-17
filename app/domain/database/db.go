@@ -217,19 +217,20 @@ func (d *DB) GetRelPagos(p models.Fechas) ([]models.RelPagos, models.Respuesta) 
 	}
 	defer rows.Close()
 	payments := []models.RelPagos{}
-	payment := models.RelPagos{}
-	var montoCita sql.NullFloat64
-	var formaPago sql.NullString
-	var montoDoctor sql.NullFloat64
-
 	for rows.Next() {
+		payment := models.RelPagos{}
+		var fechaPago sql.NullString
+		var montoCita sql.NullFloat64
+		var formaPago sql.NullString
+		var montoDoctor sql.NullFloat64
+
 		err2 :=
 			rows.Scan(
 				&payment.Doctor_id,
 				&payment.Doctor_name,
 				&payment.Cita_id,
 				&payment.Paciente_nombre,
-				&payment.Fecha_pago,
+				&fechaPago,
 				&montoCita,
 				&formaPago,
 				&payment.Saldo,
@@ -237,10 +238,18 @@ func (d *DB) GetRelPagos(p models.Fechas) ([]models.RelPagos, models.Respuesta) 
 				&payment.MontoFacturadoCita,
 				&payment.Pago_doctor,
 				&montoDoctor,
+				&payment.FechaCita,
+				&payment.Motivo,
 			)
 		if err2 != nil {
-			utils.CreateLog(err2.Error())
+			utils.CreateLog("Scan error: " + err2.Error())
 			continue // Skip to the next row on scan error
+		}
+
+		if fechaPago.Valid {
+			payment.Fecha_pago = fechaPago.String
+		} else {
+			payment.Fecha_pago = ""
 		}
 
 		if montoCita.Valid {

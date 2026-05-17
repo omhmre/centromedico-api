@@ -74,6 +74,7 @@ func (a *App) Login() http.HandlerFunc {
 
 func (a *App) ChangePassword() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		utils.CreateLog("Handler: Petición recibida en /putpassword")
 		var user models.LoginUsuario
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {

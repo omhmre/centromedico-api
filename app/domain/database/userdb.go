@@ -209,10 +209,13 @@ func generateJWT(strUsuario string, horas int) (string, error) {
 
 func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 	var rp models.Respuesta
-	var nombre string
-	// 1. Verificar que el usuario existe
-	row := d.db.QueryRow(`SELECT u.nombre FROM seguridad.usuarios u WHERE u.codigo = $1;`, u.Codigo)
-	err := row.Scan(&nombre)
+	var nombre, correo string
+
+	utils.CreateLog("ChangePassword: Iniciando proceso para usuario: " + u.Codigo)
+
+	// 1. Obtener información del usuario (nombre y correo) - Búsqueda insensible a mayúsculas
+	row := d.db.QueryRow(`SELECT u.nombre, u.correo FROM seguridad.usuarios u WHERE LOWER(u.codigo) = LOWER($1);`, u.Codigo)
+	err := row.Scan(&nombre, &correo)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			rp.Status = 404
@@ -224,43 +227,66 @@ func (d *DB) ChangePassword(u models.LoginUsuario) models.Respuesta {
 		return rp
 	}
 
-	// 2. Validar que se proporcionó una nueva clave
+	nuevaClave := ""
+	esOlvido := false
+
+	// 2. Si u.Clave está vacía, es un flujo de "Olvido su clave"
 	if u.Clave == "" {
-		rp.Status = 400
-		rp.Mensaje = "La nueva contraseña es requerida."
-		return rp
+		if correo == "" {
+			rp.Status = 400
+			rp.Mensaje = "El usuario no tiene un correo electrónico registrado para el restablecimiento."
+			return rp
+		}
+		nuevaClave = strconv.Itoa(crearClave())
+		esOlvido = true
+	} else {
+		nuevaClave = u.Clave
 	}
 
-	// 3. Hashear la nueva contraseña proporcionada
-	hashedClaveBytes, errHash := bcrypt.GenerateFromPassword([]byte(u.Clave), bcrypt.DefaultCost)
+	// 3. Hashear la nueva contraseña
+	hashedClaveBytes, errHash := bcrypt.GenerateFromPassword([]byte(nuevaClave), bcrypt.DefaultCost)
 	if errHash != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al hashear la nueva contraseña: " + errHash.Error()
+		rp.Mensaje = "Error al procesar la nueva contraseña: " + errHash.Error()
 		utils.CreateLog(rp.Mensaje)
 		return rp
 	}
-
 	hashedClave := string(hashedClaveBytes)
 
 	// 4. Actualizar la contraseña en la base de datos
-	resp, errUpdate := d.db.Exec(`UPDATE seguridad.usuarios SET clave = $1 WHERE codigo = $2;`, hashedClave, u.Codigo)
+	_, errUpdate := d.db.Exec(`UPDATE seguridad.usuarios SET clave = $1 WHERE codigo = $2;`, hashedClave, u.Codigo)
 	if errUpdate != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al actualizar la contraseña: " + errUpdate.Error()
+		rp.Mensaje = "Error al actualizar la contraseña en la base de datos."
 		utils.CreateLog(fmt.Sprintf("ChangePassword Error: %v", errUpdate))
 		return rp
 	}
 
-	nreg, _ := resp.RowsAffected()
-	if nreg > 0 {
-		rp.Status = 200
-		rp.Mensaje = "Contraseña actualizada exitosamente."
-		utils.CreateLog(fmt.Sprintf("ChangePassword: Password updated manually for user %s", u.Codigo))
-		return rp
+	// 5. Si fue por "Olvido su clave", enviar el correo
+	if esOlvido {
+		mailData := models.MailSend{
+			To:      correo,
+			Subject: "Restablecimiento de Contraseña - Centro Médico",
+			Body:    fmt.Sprintf("Hola %s,\n\nHas solicitado restablecer tu contraseña. Tu nueva clave de acceso es: %s\n\nPor seguridad, te recomendamos cambiarla una vez que ingreses al sistema.\n\nAtentamente,\nEquipo de Centro Médico", nombre, nuevaClave),
+		}
+
+		errMail := d.SendMail(mailData)
+		if errMail != nil {
+			utils.CreateLog("Error al enviar correo de restablecimiento a " + correo + ": " + errMail.Error())
+			// Aún retornamos éxito en la DB, pero notificamos el problema del correo
+			rp.Status = 200
+			rp.Mensaje = "Contraseña restablecida, pero hubo un problema al enviar el correo. Contacta al administrador."
+			return rp
+		}
+		utils.CreateLog("ChangePassword: Nueva clave generada y enviada exitosamente a " + correo)
 	}
 
-	rp.Status = 500
-	rp.Mensaje = "No se pudo actualizar la contraseña."
+	rp.Status = 200
+	if esOlvido {
+		rp.Mensaje = "Se ha enviado una nueva contraseña a tu correo."
+	} else {
+		rp.Mensaje = "Contraseña actualizada exitosamente."
+	}
 	return rp
 }
 

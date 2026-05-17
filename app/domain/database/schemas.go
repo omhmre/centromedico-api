@@ -572,8 +572,8 @@ const sqlGetCitas = `SELECT
     c.montoref,
     c.tasa,
     c.montobs,
-    c.pagado,
-    (c.montoref - c.pagado) AS saldo,
+    COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0) AS pagado,
+    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
     c.porcentaje_comision,
     c.group_id,
     c.motivo_cancelacion,
@@ -637,8 +637,8 @@ const sqlGetCitaPaciente = `SELECT
     c.montoref,
     c.tasa,
     c.montobs,
-    c.pagado,
-    (c.montoref - c.pagado) AS saldo,
+    COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0) AS pagado,
+    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
     c.porcentaje_comision,
     c.group_id,
     c.motivo_cancelacion,
@@ -672,17 +672,19 @@ const sqlDelPayments = `DELETE FROM medi001.payments WHERE id = $1;`
 
 const sqlGetRelPagos = `SELECT 
     d.id AS doctor_id, 
-    d.nombres AS doctor_nombre, 
+    d.nombres AS doctor_name, 
     c.id AS cita_id,
     paci.nombres AS paciente_nombre, 
     pay.date AS fecha_pago,
-    SUM(pay.amount) AS monto_cobrado_cita,
+    SUM(pay.amount) AS monto_cita,
     STRING_AGG(DISTINCT pay.paymentmethod, ', ') AS formas_pago,
-    c.saldo AS saldo_cita,
+    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
     c.status AS status_cita,
     c.montoref AS monto_facturado_cita,
-    c.porcentaje_comision AS porcentaje_pago_doctor, 
-    (SUM(pay.amount) * (c.porcentaje_comision / 100.0)) AS monto_correspondiente_doctor
+    c.porcentaje_comision AS pago_doctor, 
+    (SUM(pay.amount) * (c.porcentaje_comision / 100.0)) AS monto_doctor,
+    c.inicio AS fecha_cita,
+    COALESCE(c.motivo, '') AS motivo
 FROM medi001.citas c
 JOIN medi001.doctores d ON c.iddoctor = d.id
 left JOIN medi001.payments pay ON c.id = pay.appointmentid
@@ -697,7 +699,9 @@ GROUP BY
     c.porcentaje_comision, 
     c.saldo,
     c.status,
-    c.montoref
+    c.montoref,
+    c.inicio,
+    c.motivo
 ORDER BY 
     d.nombres, 
     paci.nombres, 
@@ -744,8 +748,8 @@ SELECT
     c.montoref,
     c.tasa,
     c.montobs,
-    c.pagado,
-    (c.montoref - c.pagado) AS saldo,
+    COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0) AS pagado,
+    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
     c.porcentaje_comision,
     c.group_id,
     c.motivo_cancelacion,
