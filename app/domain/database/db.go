@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -177,6 +178,9 @@ type PostDB interface {
 	UpdNomina(n models.NominaModel) models.Respuesta
 	PayNomina(nominaID int, fechaPago string, metodoPago string, usuarioOperacion string) models.Respuesta
 	DelNomina(i models.Id) models.Respuesta
+
+	GetActiveLicense() (models.License, error)
+	SaveLicense(licenseKey string, keyHash string, clientName string, rif string, validUntil time.Time, isPremium bool) models.Respuesta
 }
 
 type DB struct {
@@ -388,7 +392,7 @@ func (d *DB) UpdPaciente(i models.PacientesModel) models.Respuesta {
 	resp, err := d.db.Exec(sqlUpdPaciente,
 		i.Id,            // $1
 		i.Cedula,        // $2
-		i.Nombres,       // $3
+		strings.ToUpper(i.Nombres),       // $3
 		i.Fenac,         // $4
 		i.Matricula,     // New field, corresponds to $5 in sqlUpdPaciente
 		i.Status,        // New field, corresponds to $6 in sqlUpdPaciente
@@ -487,7 +491,7 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 
 	var newID int
 	// La consulta de inserciÃ³n devuelve el nuevo ID. Usamos QueryRow para capturarlo.
-	err = tx.QueryRow(sqlPostPaciente, i.Cedula, i.Nombres, i.Fenac, i.Matricula, i.Status, i.Representante, i.Whatsapp,
+	err = tx.QueryRow(sqlPostPaciente, i.Cedula, strings.ToUpper(i.Nombres), i.Fenac, i.Matricula, i.Status, i.Representante, i.Whatsapp,
 		i.Direccion, i.Correo, i.Diagnostico, i.CXC, i.CreatedAt, i.IsBlacklisted, i.BlacklistReason, i.BlacklistDate).Scan(&newID)
 
 	if err != nil {
@@ -5440,3 +5444,37 @@ func (d *DB) DelNomina(i models.Id) models.Respuesta {
 	}
 	return rp
 }
+
+func (d *DB) GetActiveLicense() (models.License, error) {
+	var l models.License
+	query := `SELECT id, key_hash, license_key, client_name, rif, valid_until, is_premium, activated_at FROM seguridad.licencia ORDER BY id DESC LIMIT 1`
+	err := d.db.QueryRow(query).Scan(&l.Id, &l.KeyHash, &l.LicenseKey, &l.ClientName, &l.Rif, &l.ValidUntil, &l.IsPremium, &l.ActivatedAt)
+	if err != nil {
+		return l, err
+	}
+	return l, nil
+}
+
+func (d *DB) SaveLicense(licenseKey string, keyHash string, clientName string, rif string, validUntil time.Time, isPremium bool) models.Respuesta {
+	var rp models.Respuesta
+	query := `INSERT INTO seguridad.licencia (key_hash, license_key, client_name, rif, valid_until, is_premium, activated_at) 
+	VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
+	ON CONFLICT (key_hash) DO UPDATE SET last_verified = NOW()`
+	_, err := d.db.Exec(query, keyHash, licenseKey, clientName, rif, validUntil, isPremium)
+	if err != nil {
+		// Try with full insert if table has key_hash conflict and on conflict fails
+		query = `INSERT INTO seguridad.licencia (key_hash, license_key, client_name, rif, valid_until, is_premium, activated_at) 
+		VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
+		ON CONFLICT (key_hash) DO UPDATE SET license_key = EXCLUDED.license_key, last_verified = NOW()`
+		_, err = d.db.Exec(query, keyHash, licenseKey, clientName, rif, validUntil, isPremium)
+		if err != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error al guardar la licencia: " + err.Error()
+			return rp
+		}
+	}
+	rp.Status = 200
+	rp.Mensaje = "Licencia guardada correctamente"
+	return rp
+}
+

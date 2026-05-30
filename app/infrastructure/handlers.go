@@ -1,6 +1,8 @@
 package infrastructure
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"omhmre.com/centromedico/app/domain/database"
+	"omhmre.com/centromedico/app/domain/license"
 	"omhmre.com/centromedico/app/domain/models"
 	"omhmre.com/centromedico/app/domain/utils"
 )
@@ -1825,3 +1828,161 @@ func (a *App) GetBIHeatmap() http.HandlerFunc {
 		json.NewEncoder(w).Encode(data)
 	}
 }
+
+// getCompanyRif obtiene el RIF J-xxxxx configurado en la empresa
+func (a *App) getCompanyRif() string {
+	empresas, err := a.DB.GetEmpre()
+	if err.Status <= 200 && len(empresas) > 0 {
+		return empresas[0].Rif
+	}
+	return ""
+}
+
+// IsPremiumActive verifica si existe una licencia premium válida y activa
+func (a *App) IsPremiumActive() (bool, string) {
+	lic, err := a.DB.GetActiveLicense()
+	if err != nil {
+		return false, "No se encontró una licencia activa en el sistema. Registra una licencia Premium para desbloquear este módulo."
+	}
+
+	companyRif := a.getCompanyRif()
+
+	payload, errVerify := license.VerifyLicenseKey(lic.LicenseKey, companyRif)
+	if errVerify != nil {
+		return false, "Licencia inválida o expirada: " + errVerify.Error()
+	}
+
+	if !payload.IsPremium {
+		return false, "Esta característica requiere una licencia Premium activa."
+	}
+
+	return true, ""
+}
+
+// LicenseStatus retorna el estado detallado de la licencia actual
+func (a *App) LicenseStatus() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		lic, err := a.DB.GetActiveLicense()
+		if err != nil {
+			status := models.LicenseStatus{
+				IsActive:      false,
+				IsPremium:     false,
+				ClientName:    "Modo Demostración / Estándar",
+				Rif:           "",
+				ValidUntil:    time.Time{},
+				DaysRemaining: 0,
+				StatusMessage: "No hay una licencia activa. Compre una licencia premium para activar todos los módulos.",
+			}
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+
+		companyRif := a.getCompanyRif()
+		payload, errVerify := license.VerifyLicenseKey(lic.LicenseKey, companyRif)
+		if errVerify != nil {
+			days := 0
+			if payload != nil {
+				days = int(time.Until(payload.ValidUntil).Hours() / 24)
+				if days < 0 {
+					days = 0
+				}
+			}
+			status := models.LicenseStatus{
+				IsActive:      false,
+				IsPremium:     false,
+				ClientName:    lic.ClientName,
+				Rif:           lic.Rif,
+				ValidUntil:    lic.ValidUntil,
+				DaysRemaining: days,
+				StatusMessage: errVerify.Error(),
+				LicenseKey:    lic.LicenseKey,
+			}
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+
+		days := int(time.Until(payload.ValidUntil).Hours() / 24)
+		if days < 0 {
+			days = 0
+		}
+		status := models.LicenseStatus{
+			IsActive:      true,
+			IsPremium:     payload.IsPremium,
+			ClientName:    payload.ClientName,
+			Rif:           payload.Rif,
+			ValidUntil:    payload.ValidUntil,
+			DaysRemaining: days,
+			StatusMessage: "Licencia activa y validada exitosamente.",
+			LicenseKey:    lic.LicenseKey,
+		}
+		json.NewEncoder(w).Encode(status)
+	}
+}
+
+// ActivateLicense activa una nueva licencia mediante firma criptográfica
+func (a *App) ActivateLicense() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		var req models.LicenseActivationRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(models.Respuesta{
+				Status:  400,
+				Mensaje: "Cuerpo de solicitud inválido",
+			})
+			return
+		}
+
+		companyRif := a.getCompanyRif()
+
+		// Verificar firma e integridad criptográfica de la llave
+		payload, err := license.VerifyLicenseKey(req.LicenseKey, companyRif)
+		if err != nil {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(models.Respuesta{
+				Status:  422,
+				Mensaje: "Error de activación: " + err.Error(),
+			})
+			return
+		}
+
+		// Generar un hash único de la clave para almacenamiento seguro
+		hash := sha256.Sum256([]byte(req.LicenseKey))
+		keyHash := hex.EncodeToString(hash[:])
+
+		// Guardar en base de datos
+		rp := a.DB.SaveLicense(req.LicenseKey, keyHash, payload.ClientName, payload.Rif, payload.ValidUntil, payload.IsPremium)
+		if rp.Status >= 400 {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(rp)
+			return
+		}
+
+		utils.CreateLog(fmt.Sprintf("Licencia Premium activada para el cliente: %s (RIF: %s)", payload.ClientName, payload.Rif))
+
+		json.NewEncoder(w).Encode(models.Respuesta{
+			Status:  200,
+			Mensaje: fmt.Sprintf("¡Licencia Premium activada exitosamente para %s!", payload.ClientName),
+		})
+	}
+}
+
+// RequirePremium es un middleware que bloquea endpoints si no hay una licencia Premium activa
+func (a *App) RequirePremium(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ok, msg := a.IsPremiumActive(); !ok {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(models.Respuesta{
+				Status:  403,
+				Mensaje: msg,
+			})
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+

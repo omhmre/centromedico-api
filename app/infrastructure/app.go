@@ -208,6 +208,10 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/login", a.Login())
 	a.Router.HandleFunc("/putpassword", a.ChangePassword())
 
+	// Licenciamiento
+	a.Router.HandleFunc("/license/status", a.LicenseStatus())
+	a.Router.HandleFunc("/license/activate", a.ActivateLicense())
+
 	// Configuración
 	a.Router.HandleFunc("/clearlogs", a.ClearLogs())
 	a.Router.HandleFunc("/getlogs", a.GetLogs())
@@ -254,8 +258,8 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/postantecedentes", a.PostAntecedentes())
 	a.Router.HandleFunc("/getsignosvitales", a.GetSignosVitales())
 	a.Router.HandleFunc("/postsignosvitales", a.PostSignosVitales())
-	a.Router.HandleFunc("/getmedicaltimeline", a.GetMedicalHistoryTimeline())
-	a.Router.HandleFunc("/getpatientinsights", a.GetPatientMedicalInsights())
+	a.Router.HandleFunc("/getmedicaltimeline", a.RequirePremium(a.GetMedicalHistoryTimeline()))
+	a.Router.HandleFunc("/getpatientinsights", a.RequirePremium(a.GetPatientMedicalInsights()))
 	a.Router.HandleFunc("/postinformemedico", a.PostInformeMedico())
 	a.Router.HandleFunc("/getinformesmedico", a.GetInformesMedico())
 	a.Router.HandleFunc("/markinformeentregado", a.MarkInformeAsDelivered())
@@ -294,12 +298,12 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/delegresoconfig", a.DelConfigEgreso())
 
 	// Inteligencia de Negocio (BI)
-	a.Router.HandleFunc("/bi/resumen", a.GetBIResumen())
-	a.Router.HandleFunc("/bi/series", a.GetBISeries())
-	a.Router.HandleFunc("/bi/especialidades", a.GetBIEspecialidades())
-	a.Router.HandleFunc("/bi/doctores", a.GetBIDoctores())
-	a.Router.HandleFunc("/bi/pagos", a.GetBIPagos())
-	a.Router.HandleFunc("/bi/heatmap", a.GetBIHeatmap())
+	a.Router.HandleFunc("/bi/resumen", a.RequirePremium(a.GetBIResumen()))
+	a.Router.HandleFunc("/bi/series", a.RequirePremium(a.GetBISeries()))
+	a.Router.HandleFunc("/bi/especialidades", a.RequirePremium(a.GetBIEspecialidades()))
+	a.Router.HandleFunc("/bi/doctores", a.RequirePremium(a.GetBIDoctores()))
+	a.Router.HandleFunc("/bi/pagos", a.RequirePremium(a.GetBIPagos()))
+	a.Router.HandleFunc("/bi/heatmap", a.RequirePremium(a.GetBIHeatmap()))
 
 	// Personal
 	a.Router.HandleFunc("/getpersonal", a.GetPersonal())
@@ -308,9 +312,9 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/delpersonal", a.DelPersonal())
 
 	// Nómina
-	a.Router.HandleFunc("/getnominas", a.GetNominas())
-	a.Router.HandleFunc("/postnomina", a.PostNomina())
-	a.Router.HandleFunc("/updnomina", a.PutNomina())
-	a.Router.HandleFunc("/paynomina", a.PayNomina())
-	a.Router.HandleFunc("/delnomina", a.DelNomina())
+	a.Router.HandleFunc("/getnominas", a.RequirePremium(a.GetNominas()))
+	a.Router.HandleFunc("/postnomina", a.RequirePremium(a.PostNomina()))
+	a.Router.HandleFunc("/updnomina", a.RequirePremium(a.PutNomina()))
+	a.Router.HandleFunc("/paynomina", a.RequirePremium(a.PayNomina()))
+	a.Router.HandleFunc("/delnomina", a.RequirePremium(a.DelNomina()))
 }
