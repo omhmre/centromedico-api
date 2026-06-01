@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -168,8 +169,21 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 				var respMap map[string]interface{}
 				if toolErr != nil {
 					respMap = map[string]interface{}{"error": toolErr.Error()}
+				} else if resultMap != nil {
+					// Sanitize the map to prevent protobuf serialization issues with custom structs/slices of maps
+					jsonBytes, err := json.Marshal(resultMap)
+					if err != nil {
+						respMap = map[string]interface{}{"error": fmt.Sprintf("failed to serialize tool response: %v", err)}
+					} else {
+						var cleanMap map[string]interface{}
+						if err := json.Unmarshal(jsonBytes, &cleanMap); err != nil {
+							respMap = map[string]interface{}{"error": fmt.Sprintf("failed to deserialize tool response: %v", err)}
+						} else {
+							respMap = cleanMap
+						}
+					}
 				} else {
-					respMap = resultMap
+					respMap = map[string]interface{}{}
 				}
 
 				funcResponses = append(funcResponses, genai.FunctionResponse{
