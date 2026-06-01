@@ -114,10 +114,24 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 	// Reconstruct conversation history
 	var genaiHistory []*genai.Content
 	for _, msg := range req.History {
+		if msg.Content == "" {
+			continue
+		}
 		role := "user"
 		if msg.Role == "model" || msg.Role == "assistant" {
 			role = "model"
 		}
+		
+		// The history must start with a user turn
+		if len(genaiHistory) == 0 && role == "model" {
+			continue
+		}
+
+		// Ensure alternating roles
+		if len(genaiHistory) > 0 && genaiHistory[len(genaiHistory)-1].Role == role {
+			continue
+		}
+
 		genaiHistory = append(genaiHistory, &genai.Content{
 			Role: role,
 			Parts: []genai.Part{
