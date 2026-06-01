@@ -32,11 +32,12 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 			genai.Text("Eres Jarvis, el Asistente Virtual Inteligente del Centro Médico. Tu objetivo es ayudar al usuario con el agendamiento de citas médicas.\n\n" +
 				"Sigue estas reglas estrictas:\n" +
 				"1. Escribe de forma concisa, profesional y amable en Español.\n" +
-				"2. Para buscar médicos, utiliza siempre la herramienta 'buscarMedicos' indicando la especialidad requerida.\n" +
+				"2. Para buscar médicos: Si el usuario menciona el nombre o apellido de un médico (ej. 'dr montaner', 'doctora rodriguez'), utiliza primero la herramienta 'buscarDoctorPorNombre'. Si solo menciona un área o especialidad (ej. 'pediatra', 'ginecologia'), utiliza la herramienta 'buscarMedicos'.\n" +
 				"3. Para buscar disponibilidad, utiliza siempre 'buscarDisponibilidadCitas' con el ID del médico y la fecha (YYYY-MM-DD).\n" +
-				"4. Cuando el paciente decida agendar, pídele su cédula de identidad y el motivo de la consulta. Cuando tengas médico, fecha, hora, cédula y motivo, invoca la herramienta 'preConfirmarCita'.\n" +
-				"5. Explica al usuario que la cita queda pre-agendada y que debe presionar el botón de 'Confirmar' en la pantalla para guardarla definitivamente.\n" +
-				"6. Si el usuario te da fechas relativas como 'mañana' o 'el próximo martes', calcula la fecha correspondiente basándote en la fecha actual que es: " + time.Now().Format("2006-01-02") + " (Día de la semana: " + time.Now().Weekday().String() + ").\n"),
+				"4. Para registrar al paciente: Antes de pedir la cédula, busca al paciente por su nombre usando la herramienta 'buscarPacientePorNombre'. Si encuentras al paciente, extrae su cédula directamente de los resultados de búsqueda. Solo si no lo encuentras o es un paciente nuevo/externo, pídele explícitamente su cédula de identidad.\n" +
+				"5. Cuando tengas médico, fecha, hora, cédula (encontrada o pedida) y motivo de la consulta, invoca la herramienta 'preConfirmarCita'.\n" +
+				"6. Explica al usuario que la cita queda pre-agendada y que debe presionar el botón de 'Confirmar' en la pantalla para guardarla definitivamente.\n" +
+				"7. Si el usuario te da fechas relativas como 'mañana' o 'el próximo martes', calcula la fecha correspondiente basándote en la fecha actual que es: " + time.Now().Format("2006-01-02") + " (Día de la semana: " + time.Now().Weekday().String() + ").\n"),
 		},
 	}
 
@@ -56,6 +57,34 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 							},
 						},
 						Required: []string{"especialidad"},
+					},
+				},
+				{
+					Name:        "buscarDoctorPorNombre",
+					Description: "Busca médicos o especialistas activos filtrando por su nombre o apellido. Retorna sus nombres, ID, especialidad, costo de cita, etc.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"nombre": {
+								Type:        genai.TypeString,
+								Description: "El nombre o parte del nombre del médico a buscar.",
+							},
+						},
+						Required: []string{"nombre"},
+					},
+				},
+				{
+					Name:        "buscarPacientePorNombre",
+					Description: "Busca pacientes registrados filtrando por su nombre o apellido. Retorna su cédula, nombres e información de contacto.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"nombre": {
+								Type:        genai.TypeString,
+								Description: "El nombre, apellido o parte del nombre del paciente a buscar.",
+							},
+						},
+						Required: []string{"nombre"},
 					},
 				},
 				{
@@ -236,6 +265,74 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 
 func executeToolCall(ctx context.Context, db database.PostDB, fnCall genai.FunctionCall, preConf **models.PreConfirmationCard, doctorCards *[]models.DoctorCard) (map[string]interface{}, error) {
 	switch fnCall.Name {
+	case "buscarDoctorPorNombre":
+		nombre, ok := fnCall.Args["nombre"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'nombre' is missing or not a string")
+		}
+
+		doctores, dbResp := db.GetDoctores()
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("database query error: %s", dbResp.Mensaje)
+		}
+
+		var cards []models.DoctorCard
+		var responseList []map[string]interface{}
+		query := strings.ToLower(nombre)
+		for _, doc := range doctores {
+			if strings.Contains(strings.ToLower(doc.Nombres), query) || strings.Contains(strings.ToLower(doc.Espec), query) {
+				card := models.DoctorCard{
+					ID:           doc.Id,
+					Nombres:      doc.Nombres,
+					Especialidad: doc.Espec,
+					MontoCita:    doc.MontoCita,
+					Dir:          doc.Dir,
+					Whatsapp:     doc.Whatsapp,
+				}
+				cards = append(cards, card)
+				responseList = append(responseList, map[string]interface{}{
+					"id":           doc.Id,
+					"nombres":      doc.Nombres,
+					"especialidad": doc.Espec,
+					"monto":        doc.MontoCita,
+					"tlf":          doc.Tlf,
+					"activo":       doc.Activo,
+				})
+			}
+		}
+		*doctorCards = cards
+		return map[string]interface{}{"medicos": responseList}, nil
+
+	case "buscarPacientePorNombre":
+		nombre, ok := fnCall.Args["nombre"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'nombre' is missing or not a string")
+		}
+
+		pacientes, dbResp := db.GetPacientes()
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("database query error: %s", dbResp.Mensaje)
+		}
+
+		var responseList []map[string]interface{}
+		query := strings.ToLower(nombre)
+		for _, pac := range pacientes {
+			var pacCedula string
+			if pac.Cedula != nil {
+				pacCedula = *pac.Cedula
+			}
+			if strings.Contains(strings.ToLower(pac.Nombres), query) || (pac.Cedula != nil && strings.Contains(*pac.Cedula, query)) {
+				responseList = append(responseList, map[string]interface{}{
+					"id":       pac.Id,
+					"cedula":   pacCedula,
+					"nombres":  pac.Nombres,
+					"whatsapp": pac.Whatsapp,
+					"correo":   pac.Correo,
+				})
+			}
+		}
+		return map[string]interface{}{"pacientes": responseList}, nil
+
 	case "buscarMedicos":
 		especialidad, ok := fnCall.Args["especialidad"].(string)
 		if !ok {
