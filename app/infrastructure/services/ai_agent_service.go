@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/generative-ai-go/genai"
@@ -145,7 +146,7 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 	// Send user's new message
 	resp, err := cs.SendMessage(ctx, genai.Text(req.Message))
 	if err != nil {
-		return models.AIChatResponse{}, fmt.Errorf("failed to send message: %w", err)
+		return models.AIChatResponse{}, handleGeminiError(err)
 	}
 
 	var lastPreConfirmation *models.PreConfirmationCard
@@ -200,7 +201,7 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 		// Send tool responses back to the model
 		resp, err = cs.SendMessage(ctx, funcResponses...)
 		if err != nil {
-			return models.AIChatResponse{}, fmt.Errorf("failed to send function responses: %w", err)
+			return models.AIChatResponse{}, handleGeminiError(err)
 		}
 	}
 
@@ -419,4 +420,15 @@ func executeToolCall(ctx context.Context, db database.PostDB, fnCall genai.Funct
 	}
 
 	return nil, fmt.Errorf("unknown tool call function: %s", fnCall.Name)
+}
+
+func handleGeminiError(err error) error {
+	if err == nil {
+		return nil
+	}
+	errStr := strings.ToLower(err.Error())
+	if strings.Contains(errStr, "quota") || strings.Contains(errStr, "limit") || strings.Contains(errStr, "resourceexhausted") || strings.Contains(errStr, "429") {
+		return fmt.Errorf("Límite de cuota excedido de la API de Gemini (Free Tier: 15/20 peticiones por minuto). Por favor, espera un minuto para continuar, o configura una API Key de facturación (Pay-As-You-Go) en la Configuración")
+	}
+	return err
 }
