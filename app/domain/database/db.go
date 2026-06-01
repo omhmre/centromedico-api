@@ -181,6 +181,12 @@ type PostDB interface {
 
 	GetActiveLicense() (models.License, error)
 	SaveLicense(licenseKey string, keyHash string, clientName string, rif string, validUntil time.Time, isPremium bool) models.Respuesta
+
+	// AI Assistant Helper Methods
+	GetDoctoresPorEspecialidad(especialidad string) ([]models.DoctoresModel, models.Respuesta)
+	GetCitasDoctorFecha(doctorID int, fecha string) ([]models.CitaModel, models.Respuesta)
+	GetPacientePorCedula(cedula string) (models.PacientesModel, models.Respuesta)
+	GetDoctor(id int) (models.DoctoresModel, models.Respuesta)
 }
 
 type DB struct {
@@ -5477,4 +5483,287 @@ func (d *DB) SaveLicense(licenseKey string, keyHash string, clientName string, r
 	rp.Mensaje = "Licencia guardada correctamente"
 	return rp
 }
+
+// GetDoctoresPorEspecialidad filters active doctors by specialty
+func (d *DB) GetDoctoresPorEspecialidad(especialidad string) ([]models.DoctoresModel, models.Respuesta) {
+	var rp models.Respuesta
+	query := `SELECT id, nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration, monto_cita, es_medico, titulo, titulo_academico, num_mpps, num_cm, rif, cedula, fecha_nacimiento, fecha_ingreso, sueldo, frecuencia_pago, espec, tlf, activo, fecha_retiro, motivo_retiro FROM medi001.doctores WHERE activo = true AND espec ILIKE $1 ORDER BY nombres`
+	rows, err := d.db.Query(query, "%"+especialidad+"%")
+	if err != nil {
+		rp.Status = 502
+		rp.Mensaje = "Error buscando médicos por especialidad: " + err.Error()
+		return nil, rp
+	}
+	defer rows.Close()
+	doctores := []models.DoctoresModel{}
+	for rows.Next() {
+		doctor := models.DoctoresModel{}
+		var daysOfWeekRaw []byte
+		var serviciosRaw []byte
+		err2 := rows.Scan(
+			&doctor.Id,
+			&doctor.Nombres,
+			&serviciosRaw,
+			&doctor.Dir,
+			&doctor.Correo,
+			&doctor.Whatsapp,
+			&doctor.Instagram,
+			&daysOfWeekRaw,
+			&doctor.StartTime,
+			&doctor.EndTime,
+			&doctor.SlotDuration,
+			&doctor.MontoCita,
+			&doctor.EsMedico,
+			&doctor.Titulo,
+			&doctor.TituloAcademico,
+			&doctor.NumMPPS,
+			&doctor.NumCM,
+			&doctor.Rif,
+			&doctor.Cedula,
+			&doctor.FechaNacimiento,
+			&doctor.FechaIngreso,
+			&doctor.Sueldo,
+			&doctor.FrecuenciaPago,
+			&doctor.Espec,
+			&doctor.Tlf,
+			&doctor.Activo,
+			&doctor.FechaRetiro,
+			&doctor.MotivoRetiro,
+		)
+		if err2 != nil {
+			utils.CreateLog(err2.Error())
+		}
+		if daysOfWeekRaw != nil {
+			json.Unmarshal(daysOfWeekRaw, &doctor.DaysOfWeek)
+		} else {
+			doctor.DaysOfWeek = []int{1, 2, 3, 4, 5}
+		}
+		if serviciosRaw != nil {
+			json.Unmarshal(serviciosRaw, &doctor.Servicios)
+		}
+		doctores = append(doctores, doctor)
+	}
+	rp.Status = 200
+	rp.Mensaje = "Doctores filtrados correctamente"
+	return doctores, rp
+}
+
+// GetCitasDoctorFecha returns non-cancelled appointments for a specific doctor on a specific date
+func (d *DB) GetCitasDoctorFecha(doctorID int, fecha string) ([]models.CitaModel, models.Respuesta) {
+	var rp models.Respuesta
+	var citas []models.CitaModel
+	query := `SELECT c.id, c.iddoctor, d.nombres AS especialista, c.especialidad AS especialidad, c.cedula, p.nombres AS paciente, c.motivo, c.inicio, c.fin, c.diagnostico, c.status, c.color, c.montoref, c.tasa, c.montobs, COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0) AS pagado, (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo, c.porcentaje_comision, c.group_id, c.motivo_cancelacion, c.usuario_operacion, c.fecha_operacion, c.usuario_creacion, c.fecha_creacion FROM medi001.citas c LEFT JOIN medi001.doctores d ON c.iddoctor = d.id LEFT JOIN medi001.pacientes p ON c.cedula = p.cedula WHERE c.iddoctor = $1 AND DATE(c.inicio) = DATE($2) AND c.status != 'Cancelada' ORDER BY c.inicio`
+	rows, err := d.db.Query(query, doctorID, fecha)
+	if err != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error buscando citas del doctor por fecha: " + err.Error()
+		return nil, rp
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cita models.CitaModel
+		var especialista, especialidad, paciente, diagnostico, groupID, motivoCancelacion, usuarioOperacion, usuarioCreacion sql.NullString
+		var fechaOperacion, fechaCreacion sql.NullTime
+		err := rows.Scan(
+			&cita.Id,
+			&cita.IdDoctor,
+			&especialista,
+			&especialidad,
+			&cita.Cedula,
+			&paciente,
+			&cita.Motivo,
+			&cita.Inicio,
+			&cita.Fin,
+			&diagnostico,
+			&cita.Status,
+			&cita.Color,
+			&cita.Montoref,
+			&cita.Tasa,
+			&cita.Montobs,
+			&cita.Pagado,
+			&cita.Saldo,
+			&cita.PorcentajeComision,
+			&groupID,
+			&motivoCancelacion,
+			&usuarioOperacion,
+			&fechaOperacion,
+			&usuarioCreacion,
+			&fechaCreacion,
+		)
+		if err != nil {
+			rp.Status = 500
+			rp.Mensaje = "Error escaneando cita del doctor: " + err.Error()
+			return nil, rp
+		}
+		if especialista.Valid {
+			cita.Especialista = especialista.String
+		}
+		if especialidad.Valid {
+			cita.Especialidad = especialidad.String
+		}
+		if paciente.Valid {
+			cita.Paciente = paciente.String
+		}
+		if diagnostico.Valid {
+			cita.Diagnostico = &diagnostico.String
+		}
+		if groupID.Valid {
+			cita.GroupID = &groupID.String
+		}
+		if motivoCancelacion.Valid {
+			cita.MotivoCancelacion = &motivoCancelacion.String
+		}
+		if usuarioOperacion.Valid {
+			cita.UsuarioOperacion = &usuarioOperacion.String
+		}
+		if fechaOperacion.Valid {
+			cita.FechaOperacion = &fechaOperacion.Time
+		}
+		if usuarioCreacion.Valid {
+			cita.UsuarioCreacion = &usuarioCreacion.String
+		}
+		if fechaCreacion.Valid {
+			cita.FechaCreacion = &fechaCreacion.Time
+		}
+		citas = append(citas, cita)
+	}
+	rp.Status = 200
+	rp.Mensaje = "Citas obtenidas correctamente"
+	return citas, rp
+}
+
+// GetPacientePorCedula retrieves a patient by their identity card (cédula)
+func (d *DB) GetPacientePorCedula(cedula string) (models.PacientesModel, models.Respuesta) {
+	var rp models.Respuesta
+	var p models.PacientesModel
+	var rCedula, rRepresentante, rWhatsapp, rDireccion, rCorreo, rDiagnostico, rStatus, rBlacklistReason sql.NullString
+	var rMatricula sql.NullBool
+	var rBlacklistDate sql.NullTime
+
+	query := `SELECT id, cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at, is_blacklisted, blacklist_reason, blacklist_date FROM medi001.pacientes WHERE cedula = $1 LIMIT 1`
+	err := d.db.QueryRow(query, cedula).Scan(
+		&p.Id,
+		&rCedula,
+		&p.Nombres,
+		&p.Fenac,
+		&rMatricula,
+		&rStatus,
+		&rRepresentante,
+		&rWhatsapp,
+		&rDireccion,
+		&rCorreo,
+		&rDiagnostico,
+		&p.CXC,
+		&p.CreatedAt,
+		&p.IsBlacklisted,
+		&rBlacklistReason,
+		&rBlacklistDate,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			rp.Status = 404
+			rp.Mensaje = "Paciente no encontrado"
+			return p, rp
+		}
+		rp.Status = 500
+		rp.Mensaje = "Error buscando paciente: " + err.Error()
+		return p, rp
+	}
+
+	if rCedula.Valid {
+		p.Cedula = &rCedula.String
+	}
+	if rMatricula.Valid {
+		p.Matricula = &rMatricula.Bool
+	}
+	if rStatus.Valid {
+		p.Status = &rStatus.String
+	}
+	if rRepresentante.Valid {
+		p.Representante = &rRepresentante.String
+	}
+	if rWhatsapp.Valid {
+		p.Whatsapp = &rWhatsapp.String
+	}
+	if rDireccion.Valid {
+		p.Direccion = &rDireccion.String
+	}
+	if rCorreo.Valid {
+		p.Correo = &rCorreo.String
+	}
+	if rDiagnostico.Valid {
+		p.Diagnostico = &rDiagnostico.String
+	}
+	if rBlacklistReason.Valid {
+		p.BlacklistReason = &rBlacklistReason.String
+	}
+	if rBlacklistDate.Valid {
+		p.BlacklistDate = &rBlacklistDate.Time
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Paciente encontrado correctamente"
+	return p, rp
+}
+
+// GetDoctor retrieves a doctor by ID
+func (d *DB) GetDoctor(id int) (models.DoctoresModel, models.Respuesta) {
+	var rp models.Respuesta
+	var doctor models.DoctoresModel
+	query := `SELECT id, nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration, monto_cita, es_medico, titulo, titulo_academico, num_mpps, num_cm, rif, cedula, fecha_nacimiento, fecha_ingreso, sueldo, frecuencia_pago, espec, tlf, activo, fecha_retiro, motivo_retiro FROM medi001.doctores WHERE id = $1 LIMIT 1`
+	var daysOfWeekRaw []byte
+	var serviciosRaw []byte
+	err := d.db.QueryRow(query, id).Scan(
+		&doctor.Id,
+		&doctor.Nombres,
+		&serviciosRaw,
+		&doctor.Dir,
+		&doctor.Correo,
+		&doctor.Whatsapp,
+		&doctor.Instagram,
+		&daysOfWeekRaw,
+		&doctor.StartTime,
+		&doctor.EndTime,
+		&doctor.SlotDuration,
+		&doctor.MontoCita,
+		&doctor.EsMedico,
+		&doctor.Titulo,
+		&doctor.TituloAcademico,
+		&doctor.NumMPPS,
+		&doctor.NumCM,
+		&doctor.Rif,
+		&doctor.Cedula,
+		&doctor.FechaNacimiento,
+		&doctor.FechaIngreso,
+		&doctor.Sueldo,
+		&doctor.FrecuenciaPago,
+		&doctor.Espec,
+		&doctor.Tlf,
+		&doctor.Activo,
+		&doctor.FechaRetiro,
+		&doctor.MotivoRetiro,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			rp.Status = 404
+			rp.Mensaje = "Especialista no encontrado"
+			return doctor, rp
+		}
+		rp.Status = 500
+		rp.Mensaje = "Error buscando especialista: " + err.Error()
+		return doctor, rp
+	}
+	if daysOfWeekRaw != nil {
+		json.Unmarshal(daysOfWeekRaw, &doctor.DaysOfWeek)
+	} else {
+		doctor.DaysOfWeek = []int{1, 2, 3, 4, 5}
+	}
+	if serviciosRaw != nil {
+		json.Unmarshal(serviciosRaw, &doctor.Servicios)
+	}
+	rp.Status = 200
+	rp.Mensaje = "Especialista obtenido correctamente"
+	return doctor, rp
+}
+
 

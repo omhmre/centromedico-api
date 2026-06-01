@@ -248,6 +248,7 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/getcitaspaciente", a.GetCitasPaciente())
 	a.Router.HandleFunc("/putcitas", a.UpdateCita())
 	a.Router.HandleFunc("/postcita", a.AddCita())
+	a.Router.HandleFunc("/api/v1/ai/chat", a.AIChat())
 	a.Router.HandleFunc("/delcita", a.DelCita())
 	a.Router.HandleFunc("/getcitasfecha", a.GetCitasFecha())
 	a.Router.HandleFunc("/putdiagnostico", a.AddDiagnosis())

@@ -29,6 +29,7 @@ var (
 	EMAIL_INSECURE_SKIP_VERIFY bool
 	RESEND_API_KEY             string
 	RESEND_FROM                string
+	GEMINI_API_KEY             string
 )
 
 // Constantes para valores por defecto
@@ -61,6 +62,7 @@ func FetchVars() {
 	TIEMPO = os.Getenv("TIEMPO")
 	RESEND_API_KEY = os.Getenv("RESEND_API_KEY")
 	RESEND_FROM = getEnv("RESEND_FROM", "Admin Centro Medico <onboarding@resend.dev>")
+	GEMINI_API_KEY = os.Getenv("GEMINI_API_KEY")
 
 	// Nuevo: Controla la verificación del certificado TLS para el envío de correos.
 	// Por defecto es 'true' para no romper la configuración existente, pero se recomienda 'false' para producción.
