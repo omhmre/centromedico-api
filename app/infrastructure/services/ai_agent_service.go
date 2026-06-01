@@ -20,8 +20,8 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 	}
 	defer client.Close()
 
-	// Use gemini-1.5-flash for faster responsiveness suitable for chats
-	model := client.GenerativeModel("gemini-1.5-flash")
+	// Use gemini-2.5-flash for faster responsiveness suitable for chats
+	model := client.GenerativeModel("gemini-2.5-flash")
 
 	// Set temperature and system instructions
 	model.SetTemperature(0.2)
