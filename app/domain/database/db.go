@@ -95,6 +95,7 @@ type PostDB interface {
 	GetParametros() ([]models.Parametros, models.Respuesta)
 	AddParametro(i models.Parametros) models.Respuesta
 	UpdParametro(i models.Parametros) models.Respuesta
+	GetParametroValor(parametro string) string
 	PostProveedor(p models.Proveedor) models.Respuesta
 	UpdProveedor(e models.Proveedor) models.Respuesta
 	DelProveedor(e models.Id) models.Respuesta
@@ -886,6 +887,15 @@ func (d *DB) GetParametros() ([]models.Parametros, models.Respuesta) {
 	rp.Status = 10
 	rp.Mensaje = "Parametros listado correctamente!"
 	return parametros, rp
+}
+
+func (d *DB) GetParametroValor(parametro string) string {
+	var valores string
+	err := d.db.QueryRow("SELECT valores FROM seguridad.parametros WHERE parametro = $1 LIMIT 1;", parametro).Scan(&valores)
+	if err != nil {
+		return ""
+	}
+	return valores;
 }
 
 func (d *DB) GetEmailConfig() (models.EmailConfig, models.Respuesta) {

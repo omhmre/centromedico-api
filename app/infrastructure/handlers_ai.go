@@ -15,10 +15,15 @@ import (
 // AIChat handles incoming chat prompts and delegates to Gemini service
 func (a *App) AIChat() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if database.GEMINI_API_KEY == "" {
+		apiKey := database.GEMINI_API_KEY
+		if apiKey == "" {
+			apiKey = a.DB.GetParametroValor("GEMINI_API_KEY")
+		}
+
+		if apiKey == "" {
 			respuesta := models.Respuesta{
 				Status:  http.StatusInternalServerError,
-				Mensaje: "La API Key de Gemini no está configurada en el servidor backend.",
+				Mensaje: "La API Key de Gemini no está configurada en el servidor backend (revisa las variables de entorno o la configuración de parámetros).",
 			}
 			sendResponse(w, r, respuesta, http.StatusInternalServerError)
 			return
@@ -38,7 +43,7 @@ func (a *App) AIChat() http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 		defer cancel()
 
-		response, err := services.ProcessAIChat(ctx, database.GEMINI_API_KEY, a.DB, chatReq)
+		response, err := services.ProcessAIChat(ctx, apiKey, a.DB, chatReq)
 		if err != nil {
 			utils.CreateLog("Error procesando chat de IA: " + err.Error())
 			respuesta := models.Respuesta{
