@@ -1,0 +1,12 @@
+.git
+.gitignore
+Dockerfile
+local.env
+*.exe
+*.log
+log.txt
+backups/
+tmp/
+vendor/
+.vscode/
+.idea/

@@ -377,7 +377,7 @@ on a.idvendedor = v.id where a.id = $1;`
 const sqlGetUsuarios = `SELECT u.id, u.codigo, u.clave, u.nombre, u.idtipouser, t.tipo, u.idperfil, u.status, 
 u.direccion, u.direccion2, u.ciudad, u.estado, u.telf, u.cel, u.correo, COALESCE(facebook, '') as facebook,
     COALESCE(whatsapp, '') as whatsapp,
-    COALESCE(instagram, '') as instagram, u.idvendedor, COALESCE(u.foto, '') as foto
+    COALESCE(instagram, '') as instagram, u.idvendedor
 FROM seguridad.usuarios u left join seguridad.tipouser t on u.idtipouser = t.id`
 
 const sqlGetUsuarioWhere = ` where u.codigo = $1 and u.clave = $2;`
@@ -516,85 +516,69 @@ const sqlInsertCxp = `INSERT INTO empre001.cxp (
               $9
               );`
 
-const sqlGetEmailConfig = `SELECT id, smtp, puerto, usuario, clave, tls FROM empre001.emailconfig`
+const sqlGetEmailConfig = `SELECT id, smtp, puerto, usuario, clave, tls FROM empre001.emailconfig;`
 
 const sqlUpdEmailConfig = `UPDATE empre001.emailconfig
 SET smtp=$2, puerto=$3, usuario=$4, clave=$5, tls=$6 where id = $1;`
 
-const sqlAddEmailConfig = `INSERT INTO empre001.emailconfig
-(smtp, puerto, usuario, clave, tls)
-VALUES($1, $2, $3, $4, $5);`
-
-const sqlDelEmailConfig = `DELETE FROM empre001.emailconfig WHERE id = $1;`
-
 const sqlDelPresupuesto = `DELETE FROM empre001.presupuestos `
 
-const sqlGetDoctores = `SELECT id, nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration, monto_cita, es_medico, titulo, titulo_academico, num_mpps, num_cm, rif, cedula, fecha_nacimiento, fecha_ingreso, sueldo, frecuencia_pago, espec, tlf, activo, fecha_retiro, motivo_retiro FROM medi001.doctores ORDER BY nombres`
+const sqlGetDoctores = `select d.id, d.nombres, d.espec, d.dir, d.tlf, d.correo, d.whatsapp, d.instagram, 
+d.tasapago from medi001.doctores d order by d.nombres;`
 
-const sqlUpdDoctores = `UPDATE medi001.doctores SET nombres = $2, servicios = $3, dir = $4, correo = $5, whatsapp = $6, instagram = $7, days_of_week = $8, start_time = $9, end_time = $10, slot_duration = $11, monto_cita = $12, es_medico = $13, titulo = $14, titulo_academico = $15, num_mpps = $16, num_cm = $17, rif = $18, cedula = $19, fecha_nacimiento = $20, fecha_ingreso = $21, sueldo = $22, frecuencia_pago = $23, espec = $24, tlf = $25, activo = $26, fecha_retiro = $27, motivo_retiro = $28 WHERE id = $1`
+const sqlUpdDoctores = `update medi001.doctores set 
+nombres = $2, espec = $3, dir = $4, tlf = $5, correo = $6, whatsapp = $7, instagram = $8, tasapago = $9 
+where id = $1;`
 
-const sqlPostDoctor = `INSERT INTO medi001.doctores (nombres, servicios, dir, correo, whatsapp, instagram, days_of_week, start_time, end_time, slot_duration, monto_cita, es_medico, titulo, titulo_academico, num_mpps, num_cm, rif, cedula, fecha_nacimiento, fecha_ingreso, sueldo, frecuencia_pago, espec, tlf, activo, fecha_retiro, motivo_retiro) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`
-
-const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at, is_blacklisted, blacklist_reason, blacklist_date
+const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc
 FROM medi001.pacientes;`
 
 const sqlPostPaciente = `INSERT INTO medi001.pacientes
-(cedula, nombres, fenac, matricula, status, representante, whatsapp, direccion, correo, diagnostico, cxc, created_at, is_blacklisted, blacklist_reason, blacklist_date)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id;`
+(cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id;`
 
 const sqlUpdPaciente = `UPDATE medi001.pacientes
-SET cedula=$2, nombres=$3, fenac=$4, matricula=$5, status=$6, representante=$7, whatsapp=$8, direccion=$9, correo=$10, diagnostico=$11, cxc=$12, is_blacklisted=$13, blacklist_reason=$14, blacklist_date=$15
+SET cedula=$2, nombres=$3, fenac=$4, representante=$5, whatsapp=$6, direccion=$7, correo=$8, diagnostico=$9, cxc=$10
 WHERE id=$1;`
-
-const sqlUpdPacienteMatricula = `UPDATE medi001.pacientes SET matricula=$2 WHERE id=$1;`
-
-const sqlUpdPacienteStatus = `UPDATE medi001.pacientes SET status=$2 WHERE id=$1;`
 
 const sqlDelPaciente = `DELETE FROM medi001.pacientes WHERE id = $1;`
 
-
+const sqlPostDoctor = `INSERT INTO medi001.doctores
+(id, nombres, espec, dir, tlf, correo, whatsapp, instagram, tasapago)
+VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8);`
 
 const sqlDelDoctor = `DELETE FROM medi001.doctores WHERE id = $1;`
 
 const sqlGetCitas = `SELECT
-    c.id,
+    c.id AS cita_id,
     c.iddoctor,
     d.nombres AS especialista,
-    c.especialidad AS especialidad,
-    c.cedula,
+    d.espec AS especialidad,
+    c.cedula AS paciente_cedula,
     p.nombres AS paciente,
     c.motivo,
     c.inicio,
     c.fin,
     c.diagnostico,
-    c.status,
+    c.status AS cita_status,
     c.color,
     c.montoref,
     c.tasa,
     c.montobs,
-    COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0) AS pagado,
-    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
-    c.porcentaje_comision,
-    c.group_id,
-    c.motivo_cancelacion,
-    c.usuario_operacion,
-    c.fecha_operacion,
-    c.usuario_creacion,
-    c.fecha_creacion
+    c.pagado,
+    c.saldo
 FROM
     medi001.citas c
-LEFT JOIN
+INNER JOIN
     medi001.doctores d ON c.iddoctor = d.id
-LEFT JOIN
+INNER JOIN
     medi001.pacientes p ON c.cedula = p.cedula
-WHERE
-    c.inicio >= CURRENT_DATE - INTERVAL '1 year'
 ORDER BY
     c.id;`
 
 const sqlDelCita = `DELETE FROM medi001.citas WHERE id = $1;`
 
-const sqlDelCitaAll = `DELETE FROM medi001.citas WHERE group_id = (SELECT group_id FROM medi001.citas WHERE id = $1) AND inicio >= (SELECT inicio FROM medi001.citas WHERE id = $1);`
+const sqlDelCitaAll = `DELETE FROM medi001.citas WHERE cedula = (SELECT cedula FROM medi001.citas WHERE id = $1) AND inicio >= (SELECT inicio FROM medi001.citas WHERE id = $1);`
 
 const sqlUpdCita = `UPDATE medi001.citas SET 
 		iddoctor = $2, 
@@ -607,116 +591,66 @@ const sqlUpdCita = `UPDATE medi001.citas SET
         montoref = $9,
         tasa = $10,
         montobs = $11,
-        pagado = $12,
-        group_id = $13,
-        motivo_cancelacion = $14,
-        usuario_operacion = $15,
-        fecha_operacion = $16,
-        especialidad = $17,
-        porcentaje_comision = $18
+        pagado = $12
 		WHERE id = $1`
 
 const sqlUpdDiagnostico = `UPDATE medi001.citas SET diagnostico = $1, status = 'Completada' WHERE id = $2`
 
-const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo, group_id, motivo_cancelacion, usuario_operacion, fecha_operacion, especialidad, porcentaje_comision, usuario_creacion, fecha_creacion) 
-		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8::float8, $9, $10, $11::float8, ($8::float8 - $11::float8), $12, $13, $14, $15, $16, $17, $18, $19);`
+const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo) 
+		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $8);`
 
 const sqlGetCitaPaciente = `SELECT
-    c.id,
+    c.id AS cita_id,
     c.iddoctor,
     d.nombres AS especialista,
-    c.especialidad AS especialidad,
-    c.cedula,
+    d.espec AS especialidad,
+    c.cedula AS paciente_cedula,
     p.nombres AS paciente,
     c.motivo,
     c.inicio,
     c.fin,
     c.diagnostico,
-    c.status,
+    c.status AS cita_status,
     c.color,
     c.montoref,
     c.tasa,
     c.montobs,
-    COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0) AS pagado,
-    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
-    c.porcentaje_comision,
-    c.group_id,
-    c.motivo_cancelacion,
-    c.usuario_operacion,
-    c.fecha_operacion,
-    c.usuario_creacion,
-    c.fecha_creacion
+    c.pagado,
+    c.saldo
 FROM
     medi001.citas c
-LEFT JOIN
+INNER JOIN
     medi001.doctores d ON c.iddoctor = d.id
-LEFT JOIN
+INNER JOIN
     medi001.pacientes p ON c.cedula = p.cedula
 where c.cedula = $1
 ORDER BY c.id;`
 
-const sqlGetPayments = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes, usuario_operacion, fecha_operacion
+const sqlGetPayments = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes
 FROM medi001.payments;`
 
-const sqlGetPaymentsByCita = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes, usuario_operacion, fecha_operacion
+const sqlGetPaymentsByCita = `SELECT id, appointmentid, paymentmethod, amount, currency, reference, "date", status, notes
 FROM medi001.payments where appointmentid = $1;`
 
 const sqlPostPayments = `INSERT INTO medi001.payments (appointmentid, paymentmethod, amount, currency, 
-reference, date, status, notes, usuario_operacion, fecha_operacion)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+reference, date, status, notes)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8)`
 
 const sqlUpdPayments = `UPDATE medi001.payments SET paymentmethod = $2, amount = $3, currency = $4, reference = $5, "date" = $6 , 
-status = $7, notes = $8, usuario_operacion = $9, fecha_operacion = $10 WHERE id = $1;`
+status = $7, notes = $8 WHERE id = $1;`
 
 const sqlDelPayments = `DELETE FROM medi001.payments WHERE id = $1;`
 
-const sqlGetRelPagos = `SELECT 
-    d.id AS doctor_id, 
-    d.nombres AS doctor_name, 
-    c.id AS cita_id,
-    paci.nombres AS paciente_nombre, 
-    pay.date AS fecha_pago,
-    SUM(pay.amount) AS monto_cita,
-    STRING_AGG(DISTINCT pay.paymentmethod, ', ') AS formas_pago,
-    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
-    c.status AS status_cita,
-    c.montoref AS monto_facturado_cita,
-    c.porcentaje_comision AS pago_doctor, 
-    (SUM(pay.amount) * (c.porcentaje_comision / 100.0)) AS monto_doctor,
-    c.inicio AS fecha_cita,
-    COALESCE(c.motivo, '') AS motivo
+const sqlGetRelPagos = `SELECT d.id AS doctor_id, d.nombres AS doctor_nombre, c.id AS cita_id,
+    paci.nombres AS paciente_nombre, SUM(pay.amount) AS monto_cobrado_cita,
+    d.tasapago AS porcentaje_pago_doctor, (SUM(pay.amount) * (d.tasapago / 100.0)) AS monto_correspondiente_doctor
 FROM medi001.citas c
 JOIN medi001.doctores d ON c.iddoctor = d.id
-left JOIN medi001.payments pay ON c.id = pay.appointmentid
+JOIN medi001.payments pay ON c.id = pay.appointmentid
 JOIN medi001.pacientes paci ON c.cedula = paci.cedula
-WHERE DATE(c.inicio) BETWEEN $1 AND $2
-GROUP BY 
-    d.id, 
-    d.nombres, 
-    paci.nombres, 
-    pay.date,
-    c.id, 
-    c.porcentaje_comision, 
-    c.saldo,
-    c.status,
-    c.montoref,
-    c.inicio,
-    c.motivo
-ORDER BY 
-    d.nombres, 
-    paci.nombres, 
-    c.id;`
-
-// `SELECT d.id AS doctor_id, d.nombres AS doctor_nombre, c.id AS cita_id,
-//     paci.nombres AS paciente_nombre, SUM(pay.amount) AS monto_cobrado_cita,
-//     d.tasapago AS porcentaje_pago_doctor, (SUM(pay.amount) * (d.tasapago / 100.0)) AS monto_correspondiente_doctor
-// FROM medi001.citas c
-// JOIN medi001.doctores d ON c.iddoctor = d.id
-// JOIN medi001.payments pay ON c.id = pay.appointmentid
-// JOIN medi001.pacientes paci ON c.cedula = paci.cedula
-// WHERE DATE(c.inicio) between $1 and $2
-// GROUP BY d.id, d.nombres, paci.nombres, c.id, d.tasapago
-// ORDER BY d.nombres, paci.nombres, c.id;`
+WHERE DATE(c.inicio) between $1 and $2
+GROUP BY d.id, d.nombres, paci.nombres, c.id, d.tasapago
+ORDER BY d.nombres, paci.nombres, c.id;`
 
 const sqlAddUsuario = `INSERT INTO seguridad.usuarios(codigo, clave, nombre, idtipouser, idperfil, status, direccion, 
 direccion2, ciudad, estado, telf, cel, correo, facebook, whatsapp, instagram, idvendedor)
@@ -731,236 +665,38 @@ ON CONFLICT (id_paciente, especialidad) DO UPDATE SET precio = EXCLUDED.precio;`
 
 const sqlDelPrecioEspecialidad = `DELETE FROM medi001.paciente_precios_especialidad WHERE id_paciente = $1 AND especialidad = $2;`
 
-const sqlGetCitasFecha = `
-SELECT
-    c.id,
-    c.iddoctor,
-    d.nombres AS especialista,
-    c.especialidad AS especialidad,
-    c.cedula,
-    p.nombres AS paciente,
-    c.motivo,
-    c.inicio,
-    c.fin,
-    c.diagnostico,
-    c.status,
-    c.color,
-    c.montoref,
-    c.tasa,
-    c.montobs,
-    COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0) AS pagado,
-    (c.montoref - COALESCE((SELECT SUM(amount) FROM medi001.payments WHERE appointmentid = c.id), 0)) AS saldo,
-    c.porcentaje_comision,
-    c.group_id,
-    c.motivo_cancelacion,
-    c.usuario_operacion,
-    c.fecha_operacion,
-    c.usuario_creacion,
-    c.fecha_creacion
-FROM
-    medi001.citas c
-LEFT JOIN
-    medi001.doctores d ON c.iddoctor = d.id
-LEFT JOIN
-    medi001.pacientes p ON c.cedula = p.cedula
-WHERE c.inicio >= $1 AND c.fin <= $2
-ORDER BY c.inicio;`
+// ---------------------------------------------------------
+// CLINICAL HISTORY (HISTORIAL CLÍNICO)
+// ---------------------------------------------------------
 
-const sqlUpdateUnpaidAppointmentsVESRate = `
-UPDATE medi001.citas
-SET tasa = $1,
-montobs = montoref * $1
-WHERE pagado = 0
-  AND status != 'Cancelada'
-  AND montoref != 0;
-`
-const sqlGetAllPacientesData = `SELECT medi001.get_all_pacientes_data($1, $2);`
+const sqlGetClinicalHistory = `SELECT id, cedula_paciente, antecedentes_familiares, patologias_previas, alergias, habitos, created_at, updated_at 
+FROM medi001.historial_clinico WHERE cedula_paciente = $1;`
 
-// ─── SQL de Inteligencia de Negocio ──────────────────────────────────────────
+const sqlUpsertClinicalHistory = `
+INSERT INTO medi001.historial_clinico (cedula_paciente, antecedentes_familiares, patologias_previas, alergias, habitos)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (cedula_paciente) DO UPDATE SET 
+antecedentes_familiares = EXCLUDED.antecedentes_familiares,
+patologias_previas = EXCLUDED.patologias_previas,
+alergias = EXCLUDED.alergias,
+habitos = EXCLUDED.habitos,
+updated_at = NOW()
+RETURNING id;`
 
-const sqlBIResumenGeneral = `
-SELECT
-    COUNT(c.id)                                                      AS total_citas,
-    COUNT(c.id) FILTER (WHERE c.status = 'Completada')               AS completadas,
-    COUNT(c.id) FILTER (WHERE c.status = 'Cancelada')                AS canceladas,
-    COUNT(c.id) FILTER (WHERE c.status NOT IN ('Completada','Cancelada')) AS pendientes,
-    COALESCE(SUM(pay.amount), 0)                                     AS total_ingresos_usd,
-    CASE WHEN COUNT(c.id) FILTER (WHERE c.status = 'Completada') > 0
-         THEN COALESCE(SUM(pay.amount), 0) / NULLIF(COUNT(c.id) FILTER (WHERE c.status = 'Completada'), 0)
-         ELSE 0 END                                                  AS ingreso_por_cita,
-    COUNT(DISTINCT c.cedula)                                         AS pacientes_unicos,
-    CASE WHEN COUNT(c.id) > 0
-         THEN ROUND(COUNT(c.id) FILTER (WHERE c.status = 'Completada') * 100.0 / COUNT(c.id), 2)
-         ELSE 0 END                                                  AS tasa_completadas
-FROM medi001.citas c
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
-WHERE DATE(c.inicio) BETWEEN $1 AND $2;`
+const sqlGetClinicalRecords = `SELECT 
+    r.id, r.cedula_paciente, r.id_especialista, d.nombres AS nombre_especialista, d.espec AS especialidad_especialista,
+    r.motivo_consulta, r.examen_fisico, r.diagnostico, r.tratamiento, r.observaciones, r.created_at, r.updated_at
+FROM medi001.registros_clinicos r
+INNER JOIN medi001.doctores d ON r.id_especialista = d.id
+WHERE r.cedula_paciente = $1 ORDER BY r.created_at DESC;`
 
-const sqlBICitasPorDia = `
-SELECT
-    DATE(c.inicio)           AS fecha,
-    COUNT(c.id)              AS citas,
-    COALESCE(SUM(pay.amount), 0) AS ingresos
-FROM medi001.citas c
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
-WHERE DATE(c.inicio) BETWEEN $1 AND $2
-GROUP BY DATE(c.inicio)
-ORDER BY DATE(c.inicio);`
+const sqlInsertClinicalRecord = `INSERT INTO medi001.registros_clinicos 
+(cedula_paciente, id_especialista, motivo_consulta, examen_fisico, diagnostico, tratamiento, observaciones)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
 
-const sqlBICitasPorEspecialidad = `
-SELECT
-    COALESCE(d.espec, 'Sin Especialidad')   AS especialidad,
-    COUNT(c.id)                             AS total_citas,
-    COUNT(c.id) FILTER (WHERE c.status = 'Completada') AS completadas,
-    COALESCE(SUM(pay.amount), 0)            AS total_ingresos,
-    CASE WHEN COUNT(c.id) > 0
-         THEN ROUND(COUNT(c.id) FILTER (WHERE c.status = 'Completada') * 100.0 / COUNT(c.id), 2)
-         ELSE 0 END                         AS tasa_eficiencia
-FROM medi001.citas c
-LEFT JOIN medi001.doctores d ON c.iddoctor = d.id
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
-WHERE DATE(c.inicio) BETWEEN $1 AND $2
-GROUP BY d.espec
-ORDER BY total_citas DESC;`
+const sqlGetClinicalAttachments = `SELECT id, id_registro, nombre_archivo, tipo_archivo, url_archivo, created_at 
+FROM medi001.archivos_clinicos WHERE id_registro = $1 ORDER BY created_at ASC;`
 
-const sqlBIRendimientoDoctor = `
-SELECT
-    d.nombres                AS nombre,
-    COUNT(c.id)              AS total_citas,
-    COUNT(c.id) FILTER (WHERE c.status = 'Completada') AS completadas,
-    COALESCE(SUM(pay.amount), 0) AS ingresos,
-    CASE WHEN COUNT(c.id) > 0
-         THEN ROUND(COUNT(c.id) FILTER (WHERE c.status = 'Completada') * 100.0 / COUNT(c.id), 2)
-         ELSE 0 END          AS eficiencia
-FROM medi001.citas c
-JOIN medi001.doctores d ON c.iddoctor = d.id
-LEFT JOIN medi001.payments pay ON c.id = pay.appointmentid AND pay.status = 'Completado'
-WHERE DATE(c.inicio) BETWEEN $1 AND $2
-GROUP BY d.id, d.nombres
-ORDER BY ingresos DESC;`
-
-const sqlBIMetodosPago = `
-WITH total AS (SELECT COALESCE(SUM(amount), 0) AS grand_total FROM medi001.payments WHERE status = 'Completado' AND DATE(date) BETWEEN $1 AND $2)
-SELECT
-    paymentmethod           AS metodo,
-    COALESCE(SUM(amount), 0) AS total,
-    CASE WHEN (SELECT grand_total FROM total) > 0
-         THEN ROUND(SUM(amount) * 100.0 / (SELECT grand_total FROM total), 2)
-         ELSE 0 END         AS porcentaje
-FROM medi001.payments
-WHERE status = 'Completado' AND DATE(date) BETWEEN $1 AND $2
-GROUP BY paymentmethod
-ORDER BY total DESC;`
-
-const sqlBIHeatmap = `
-SELECT
-    EXTRACT(DOW FROM c.inicio)::int  AS dia_semana,
-    EXTRACT(HOUR FROM c.inicio)::int AS hora,
-    COUNT(c.id)                      AS cantidad
-FROM medi001.citas c
-WHERE DATE(c.inicio) BETWEEN $1 AND $2
-  AND c.status != 'Cancelada'
-GROUP BY dia_semana, hora
-ORDER BY dia_semana, hora;`
-
-// --- Historial Clínico ---
-
-const sqlGetAntecedentes = `SELECT id_paciente, medicos, quirurgicos, alergicos, familiares, habitos, otros, ultima_actualizacion FROM medi001.paciente_antecedentes WHERE id_paciente = $1;`
-
-const sqlUpsertAntecedentes = `
-INSERT INTO medi001.paciente_antecedentes (id_paciente, medicos, quirurgicos, alergicos, familiares, habitos, otros, ultima_actualizacion)
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-ON CONFLICT (id_paciente) DO UPDATE SET 
-    medicos = EXCLUDED.medicos,
-    quirurgicos = EXCLUDED.quirurgicos,
-    alergicos = EXCLUDED.alergicos,
-    familiares = EXCLUDED.familiares,
-    habitos = EXCLUDED.habitos,
-    otros = EXCLUDED.otros,
-    ultima_actualizacion = NOW();`
-
-const sqlGetSignosVitales = `SELECT id, id_paciente, id_cita, fecha, tension_arterial, frecuencia_cardiaca, frecuencia_respiratoria, temperatura, saturacion_oxigeno, peso, talla, imc, notas, usuario_operacion 
-FROM medi001.paciente_signos_vitales WHERE id_paciente = $1 ORDER BY fecha DESC;`
-
-const sqlPostSignosVitales = `INSERT INTO medi001.paciente_signos_vitales 
-(id_paciente, id_cita, tension_arterial, frecuencia_cardiaca, frecuencia_respiratoria, temperatura, saturacion_oxigeno, peso, talla, imc, notas, usuario_operacion)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
-
-const sqlGetMedicalHistoryTimeline = `
-(SELECT fecha, 'Consulta' as tipo, CASE WHEN (contenido IS NOT NULL AND contenido != '') THEN SUBSTRING(contenido, 1, 200) ELSE evolucion END as detalle, COALESCE((SELECT nombres FROM medi001.doctores WHERE id = id_doctor), '') as doctor, COALESCE((SELECT espec FROM medi001.doctores WHERE id = id_doctor), '') as especialidad, id as id_referencia
- FROM medi001.informe_medico WHERE id_paciente = $1)
-
-UNION ALL
-(SELECT fecha as fecha, 'Signos Vitales' as tipo, CONCAT('Tensión: ', tension_arterial, ', Peso: ', peso, 'kg') as detalle, '' as doctor, '' as especialidad, id as id_referencia
- FROM medi001.paciente_signos_vitales WHERE id_paciente = $1)
-ORDER BY fecha DESC;`
-
-const sqlGetInformesMedico = `SELECT i.id, i.id_paciente, i.fecha, i.id_doctor, i.id_cita, i.diagnostico, i.evolucion, i.plan, i.recomendaciones, i.contenido, i.entregado, i.fecha_entrega, i.modificado_post_entrega, i.usuario_operacion,
-COALESCE(d.nombres, '') as doctor_nombre, COALESCE(d.espec, '') as doctor_espec,
-COALESCE(d.es_medico, false) as es_medico, COALESCE(d.titulo, '') as doctor_titulo, 
-COALESCE(d.titulo_academico, '') as doctor_titulo_academico, COALESCE(d.num_mpps, '') as doctor_mpps, 
-COALESCE(d.num_cm, '') as doctor_cm, COALESCE(d.rif, '') as doctor_rif
-FROM medi001.informe_medico i
-LEFT JOIN medi001.doctores d ON i.id_doctor = d.id
-WHERE i.id_paciente = $1 ORDER BY i.fecha DESC;`
-
-
-const sqlPostInformeMedico = `INSERT INTO medi001.informe_medico 
-(id_paciente, id_doctor, id_cita, diagnostico, evolucion, plan, recomendaciones, contenido, entregado, fecha_entrega, modificado_post_entrega, usuario_operacion)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
-
-const sqlUpdateInformeMedico = `UPDATE medi001.informe_medico SET 
-id_doctor = $2, id_cita = $3, diagnostico = $4, evolucion = $5, plan = $6, recomendaciones = $7, contenido = $8, entregado = $9, fecha_entrega = $10, modificado_post_entrega = $11, usuario_operacion = $12 
-WHERE id = $1;`
-
-const sqlMarkInformeEntregado = `UPDATE medi001.informe_medico SET entregado = true, fecha_entrega = NOW() WHERE id = $1;`
-
-
-// ─── SQL de Egresos ──────────────────────────────────────────────────────────
-
-const sqlGetEgresos = `SELECT id, fecha, descripcion, monto, categoria, metodo_pago, referencia, usuario_operacion, fecha_operacion 
-FROM medi001.egresos WHERE fecha BETWEEN $1 AND $2 ORDER BY fecha DESC;`
-
-const sqlPostEgreso = `INSERT INTO medi001.egresos (fecha, descripcion, monto, categoria, metodo_pago, referencia, usuario_operacion, fecha_operacion)
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id;`
-
-const sqlUpdEgreso = `UPDATE medi001.egresos SET fecha=$2, descripcion=$3, monto=$4, categoria=$5, metodo_pago=$6, referencia=$7, usuario_operacion=$8
-WHERE id=$1;`
-
-const sqlDelEgreso = `DELETE FROM medi001.egresos WHERE id=$1;`
-
-// ─── SQL de Configuración de Egresos ──────────────────────────────────────────
-
-const sqlGetConfigEgresos = `SELECT id, tipo, valor FROM medi001.config_egresos WHERE status = true ORDER BY tipo, valor;`
-
-const sqlPostConfigEgreso = `INSERT INTO medi001.config_egresos (tipo, valor) VALUES ($1, $2) RETURNING id;`
-
-const sqlDelConfigEgreso = `UPDATE medi001.config_egresos SET status = false WHERE id = $1;`
-
-const sqlGetPersonal = `SELECT id, nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, frecuencia_pago, status, created_at FROM medi001.personal ORDER BY nombre;`
-
-const sqlPostPersonal = `INSERT INTO medi001.personal (nombre, cedula, telefono, correo, direccion, titulo, universidad, fecha_ingreso, fecha_nacimiento, cargo, sueldo, frecuencia_pago, status) 
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id;`
-
-const sqlUpdPersonal = `UPDATE medi001.personal SET nombre=$2, cedula=$3, telefono=$4, correo=$5, direccion=$6, titulo=$7, universidad=$8, fecha_ingreso=$9, fecha_nacimiento=$10, cargo=$11, sueldo=$12, frecuencia_pago=$13, status=$14 WHERE id=$1;`
-
-const sqlDelPersonal = `DELETE FROM medi001.personal WHERE id = $1;`
-
-// ─── SQL de Nóminas ──────────────────────────────────────────────────────────
-
-const sqlGetNominas = `SELECT n.id, n.personal_id, p.nombre, n.fecha_inicio, n.fecha_fin, n.tipo_periodo, 
-n.monto_base, n.bonificaciones, n.deducciones, n.monto_total, n.status, n.fecha_pago, COALESCE(n.egreso_id, 0), n.notas, n.created_at 
-FROM medi001.nominas n 
-JOIN medi001.personal p ON n.personal_id = p.id 
-WHERE n.fecha_inicio >= $1 AND n.fecha_fin <= $2 
-ORDER BY n.fecha_pago DESC, p.nombre;`
-
-const sqlPostNomina = `INSERT INTO medi001.nominas (personal_id, fecha_inicio, fecha_fin, tipo_periodo, monto_base, bonificaciones, deducciones, monto_total, status, notas) 
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id;`
-
-const sqlUpdNominaStatus = `UPDATE medi001.nominas SET status=$2, fecha_pago=$3, egreso_id=$4, updated_at=NOW() WHERE id=$1;`
-
-const sqlUpdNomina = `UPDATE medi001.nominas SET monto_base=$2, bonificaciones=$3, deducciones=$4, monto_total=$5, notas=$6, updated_at=NOW() WHERE id=$1 AND status='Pendiente';`
-
-
-const sqlDelNomina = `DELETE FROM medi001.nominas WHERE id=$1 AND status='Pendiente';`
+const sqlInsertClinicalAttachment = `INSERT INTO medi001.archivos_clinicos 
+(id_registro, nombre_archivo, tipo_archivo, url_archivo)
+VALUES ($1, $2, $3, $4) RETURNING id;`
