@@ -95,8 +95,18 @@ type PostDB interface {
 	DelProveedor(e models.Id) models.Respuesta
 	AddCompra(c models.Compra) models.Respuesta
 	GetEmailConfig() ([]models.EmailConfig, models.Respuesta)
-	SendMail(f models.MailSend)
+	SendMail(f models.MailSend) error
 	UpdEmailConfig(i models.EmailConfig) models.Respuesta
+	AddEmailConfig(i models.EmailConfig) models.Respuesta
+	DelEmailConfig(i models.Id) models.Respuesta
+	GetActiveLicense() (models.License, error)
+	SaveLicense(licenseKey, keyHash, clientName, rif string, validUntil time.Time, isPremium bool) models.Respuesta
+	GetBIResumenGeneral(desde, hasta string) (models.BIResumen, models.Respuesta)
+	GetBICitasPorDia(desde, hasta string) ([]models.BITimeSeries, models.Respuesta)
+	GetBICitasPorEspecialidad(desde, hasta string) ([]models.BIEspecialidad, models.Respuesta)
+	GetBIRendimientoDoctor(desde, hasta string) ([]models.BIDoctor, models.Respuesta)
+	GetBIMetodosPago(desde, hasta string) ([]models.BIMetodoPago, models.Respuesta)
+	GetBIHeatmap(desde, hasta string) ([]models.BIHeatmapCell, models.Respuesta)
 	GetVentas(f models.Fechas) ([]models.VentasResumen, models.Respuesta)
 	PostNotaEntrega(p models.IdFactura) models.Respuesta
 	GetInventarioFormal() ([]models.Inventario, models.Respuesta)
@@ -108,6 +118,10 @@ type PostDB interface {
 	GetPresupuestoId(p models.Presupuestos) (models.Presupuestos, models.Respuesta)
 	DelPresupuesto(e models.Id) models.Respuesta
 	GetDoctores() ([]models.DoctoresModel, models.Respuesta)
+	GetDoctoresPorEspecialidad(especialidad string) ([]models.DoctoresModel, models.Respuesta)
+	GetDoctor(medicoID int) (models.DoctoresModel, models.Respuesta)
+	GetCitasDoctorFecha(medicoID int, fecha string) ([]models.CitaModel, models.Respuesta)
+	GetPacientePorCedula(cedula string) (models.PacientesModel, models.Respuesta)
 	UpdDoctores(i models.DoctoresModel) models.Respuesta
 	GetPacientes() ([]models.PacientesModel, models.Respuesta)
 	PostDoctor(i models.DoctoresModel) models.Respuesta
@@ -122,7 +136,7 @@ type PostDB interface {
 	GetRelPagos(p models.Fechas) ([]models.RelPagos, models.Respuesta)
 	DelPayment(i models.Id) models.Respuesta
 	// Citas
-	AddCita(cita models.CitaModel) models.Respuesta
+	AddCita(citas []models.CitaModel) models.Respuesta
 	UpdateCita(cita models.CitaModel) models.Respuesta
 	GetCitas() ([]models.CitaModel, models.Respuesta)
 	DelCita(e models.IdCitas) models.Respuesta
@@ -135,6 +149,44 @@ type PostDB interface {
 	InsertClinicalRecord(r *models.ClinicalRecord) (int, error)
 	GetClinicalAttachments(recordID int) ([]models.ClinicalAttachment, error)
 	InsertClinicalAttachment(a *models.ClinicalAttachment) (int, error)
+	GetSocialEvaluation(cedula string) (*models.SocialEvaluation, error)
+	UpsertSocialEvaluation(e *models.SocialEvaluation) (int, error)
+
+	// Egresos (Declaración temporal para compilación)
+	GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta)
+	PostEgreso(e models.Egreso) models.Respuesta
+	PutEgreso(e models.Egreso) models.Respuesta
+	DelEgreso(i models.Id) models.Respuesta
+	GetConfigEgresos() ([]models.ConfigEgreso, models.Respuesta)
+	PostConfigEgreso(c models.ConfigEgreso) models.Respuesta
+	DelConfigEgreso(i models.Id) models.Respuesta
+
+	// Nómina (Declaración temporal para compilación)
+	GetNominas(desde string, hasta string) ([]models.NominaModel, models.Respuesta)
+	PostNomina(n models.NominaModel) models.Respuesta
+	UpdNomina(n models.NominaModel) models.Respuesta
+	PayNomina(nominaID int, fechaPago string, metodoPago string, usuarioOperacion string) models.Respuesta
+	DelNomina(i models.Id) models.Respuesta
+
+	// Personal (Declaración temporal para compilación)
+	GetPersonal() ([]models.PersonalModel, models.Respuesta)
+	PostPersonal(p models.PersonalModel) models.Respuesta
+	UpdPersonal(p models.PersonalModel) models.Respuesta
+	DelPersonal(i models.Id) models.Respuesta
+	GetParametroValor(parametro string) string
+	UpdPacienteMatricula(paciente models.PacientesModel) models.Respuesta
+	UpdPacienteStatus(paciente models.PacientesModel) models.Respuesta
+	FetchExchangeRate() (float64, models.Respuesta)
+	UpdateUnpaidAppointmentsVESRate(rate float64) models.Respuesta
+	GetAntecedentes(idPaciente int) (models.Antecedentes, models.Respuesta)
+	UpsertAntecedentes(ant models.Antecedentes) models.Respuesta
+	GetSignosVitales(idPaciente int) ([]models.SignosVitales, models.Respuesta)
+	PostSignosVitales(v models.SignosVitales) models.Respuesta
+	PostInformeMedico(i models.InformeMedico) models.Respuesta
+	GetInformesMedico(idPaciente int) ([]models.InformeMedico, models.Respuesta)
+	MarkInformeAsDelivered(id int) models.Respuesta
+	GetMedicalHistoryTimeline(idPaciente int) ([]models.HistoryTimelineItem, models.Respuesta)
+	GetPatientMedicalInsights(idPaciente int) (map[string]interface{}, models.Respuesta)
 }
 type DB struct {
 	db   *sql.DB
@@ -702,7 +754,7 @@ func (d *DB) GetEmailConfig() ([]models.EmailConfig, models.Respuesta) {
 	return emailConfigs, rp
 }
 
-func (d *DB) SendMail(f models.MailSend) {
+func (d *DB) SendMail(f models.MailSend) error {
 	m := mail.NewMessage()
 
 	// Get Email config
@@ -711,6 +763,7 @@ func (d *DB) SendMail(f models.MailSend) {
 
 	if resp.Status != 10 {
 		utils.CreateLog(resp.Mensaje)
+		return fmt.Errorf("error al obtener configuracion de correo: %s", resp.Mensaje)
 	}
 	// utils.CreateLog("smtp " + eml[0].Smtp + "puerto " + strconv.Itoa(eml[0].Port) + "usuario " + eml[0].Usuario + " clave " + eml[0].Clave)
 	// Destinatarios
@@ -722,7 +775,9 @@ func (d *DB) SendMail(f models.MailSend) {
 	m.SetBody("text/plain", f.Body)
 
 	// Adjuntar archivo PDF
-	m.Attach(f.Archivo)
+	if f.Archivo != "" {
+		m.Attach(f.Archivo)
+	}
 
 	// Configuración del servidor SMTP
 	// d := mail.NewDialer("smtp.gmail.com", 587, "omhmre@gmail.com", "kxjs haaz cbfr mdtb")
@@ -734,7 +789,9 @@ func (d *DB) SendMail(f models.MailSend) {
 	// Enviar el correo
 	if err := dd.DialAndSend(m); err != nil {
 		utils.CreateLog(err.Error())
+		return err
 	}
+	return nil
 }
 
 func (d *DB) UpdEmailConfig(i models.EmailConfig) models.Respuesta {
@@ -3648,9 +3705,9 @@ func (d *DB) DelCompra(e models.Id) models.Respuesta {
 	return rp
 }
 
-func (d *DB) AddCita(cita models.CitaModel) models.Respuesta {
+func (d *DB) AddCita(citas []models.CitaModel) models.Respuesta {
 	var rp models.Respuesta
-	for i := 0; i < 52; i++ {
+	for _, cita := range citas {
 		_, err := d.db.Exec(sqlPostCita, cita.IdDoctor, cita.Cedula, cita.Motivo, cita.Inicio, cita.Fin, cita.Status, cita.Color,
 			cita.Montoref, cita.Tasa, cita.Montobs, cita.Pagado)
 		if err != nil {
@@ -3659,11 +3716,9 @@ func (d *DB) AddCita(cita models.CitaModel) models.Respuesta {
 			utils.CreateLog("Error al agregar cita: " + err.Error())
 			return rp
 		}
-		cita.Inicio = cita.Inicio.AddDate(0, 0, 7)
-		cita.Fin = cita.Fin.AddDate(0, 0, 7)
 	}
 	rp.Status = 200
-	rp.Mensaje = "Cita agregada correctamente"
+	rp.Mensaje = "Citas agregadas correctamente"
 	return rp
 }
 

@@ -29,6 +29,7 @@ type EmailConfig struct {
 	Id      int    `json:"id"`
 	Smtp    string `json:"smtp"`
 	Puerto  int    `json:"puerto"`
+	Port    int    `json:"port"`
 	Usuario string `json:"usuario"`
 	Clave   string `json:"clave"`
 	Tls     bool   `json:"tls"`

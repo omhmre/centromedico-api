@@ -265,6 +265,38 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/getinformesmedico", a.GetInformesMedico())
 	a.Router.HandleFunc("/markinformeentregado", a.MarkInformeAsDelivered())
 
+	// Enrutamiento de Historial Clínico (Puntos de acceso para el cliente Flutter)
+	a.Router.HandleFunc("/clinical_history", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.GetClinicalHistoryHandler()(w, r)
+		} else if r.Method == http.MethodPost {
+			a.UpsertClinicalHistoryHandler()(w, r)
+		} else {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		}
+	})
+
+	a.Router.HandleFunc("/clinical_records", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.GetClinicalRecordsHandler()(w, r)
+		} else if r.Method == http.MethodPost {
+			a.PostClinicalRecordHandler()(w, r)
+		} else {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Enrutamiento de Evaluación Social
+	a.Router.HandleFunc("/social_evaluation", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.GetSocialEvaluationHandler()(w, r)
+		} else if r.Method == http.MethodPost {
+			a.UpsertSocialEvaluationHandler()(w, r)
+		} else {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		}
+	})
+
 
 	// Doctores
 	a.Router.HandleFunc("/getdoctores", a.GetDoctores())

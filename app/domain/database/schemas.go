@@ -700,3 +700,31 @@ FROM medi001.archivos_clinicos WHERE id_registro = $1 ORDER BY created_at ASC;`
 const sqlInsertClinicalAttachment = `INSERT INTO medi001.archivos_clinicos 
 (id_registro, nombre_archivo, tipo_archivo, url_archivo)
 VALUES ($1, $2, $3, $4) RETURNING id;`
+
+// ---------------------------------------------------------
+// SOCIAL EVALUATION (EVALUACIÓN SOCIAL)
+// ---------------------------------------------------------
+
+const sqlGetSocialEvaluation = `SELECT 
+    e.id, e.cedula_paciente, e.id_especialista, d.nombres AS nombre_especialista,
+    e.grupo_familiar, e.situacion_economica, e.vivienda_entorno, e.aspecto_salud, 
+    e.diagnostico_social, e.plan_accion, e.created_at, e.updated_at 
+FROM medi001.evaluaciones_sociales e
+INNER JOIN medi001.doctores d ON e.id_especialista = d.id
+WHERE e.cedula_paciente = $1;`
+
+const sqlUpsertSocialEvaluation = `
+INSERT INTO medi001.evaluaciones_sociales 
+(cedula_paciente, id_especialista, grupo_familiar, situacion_economica, vivienda_entorno, aspecto_salud, diagnostico_social, plan_accion)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (cedula_paciente) DO UPDATE SET 
+id_especialista = EXCLUDED.id_especialista,
+grupo_familiar = EXCLUDED.grupo_familiar,
+situacion_economica = EXCLUDED.situacion_economica,
+vivienda_entorno = EXCLUDED.vivienda_entorno,
+aspecto_salud = EXCLUDED.aspecto_salud,
+diagnostico_social = EXCLUDED.diagnostico_social,
+plan_accion = EXCLUDED.plan_accion,
+updated_at = NOW()
+RETURNING id;`
+

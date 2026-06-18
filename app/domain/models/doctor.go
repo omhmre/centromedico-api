@@ -37,6 +37,7 @@ type DoctoresModel struct {
 	Activo          bool            `json:"activo"`
 	FechaRetiro     string          `json:"fecha_retiro"`
 	MotivoRetiro    string          `json:"motivo_retiro"`
+	Tasapago        float64         `json:"tasapago"`
 }
 
 // Add String method for DoctoresModel
