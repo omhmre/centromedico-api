@@ -435,84 +435,163 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 
 func (d *DB) GetPacientes() ([]models.PacientesModel, models.Respuesta) {
 	var rp models.Respuesta
-	// var citas []models.CitaModel
 
+	// 1. Obtener todos los pacientes
 	rows, err := d.db.Query(sqlGetPacientes)
 	if err != nil {
 		rp.Status = 502
 		rp.Mensaje = "No Hay Pacientes Registrados! " + err.Error()
-		// utils.CreateLog(err.Error())
 		return nil, rp
 	}
 	defer rows.Close()
+
 	pacientes := []models.PacientesModel{}
-	paciente := models.PacientesModel{}
 	for rows.Next() {
-		err2 :=
-			rows.Scan(
-				&paciente.Id,
-				&paciente.Cedula,
-				&paciente.Nombres,
-				&paciente.Fenac,
-				&paciente.Representante,
-				&paciente.Whatsapp,
-				&paciente.Direccion,
-				&paciente.Correo,
-				&paciente.Diagnostico,
-				&paciente.CXC,
-			)
+		var paciente models.PacientesModel
+		err2 := rows.Scan(
+			&paciente.Id,
+			&paciente.Cedula,
+			&paciente.Nombres,
+			&paciente.Fenac,
+			&paciente.Representante,
+			&paciente.Whatsapp,
+			&paciente.Direccion,
+			&paciente.Correo,
+			&paciente.Diagnostico,
+			&paciente.CXC,
+		)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())
+			continue
 		}
-		citas, rp := d.GetCitasPaciente(paciente)
-		if rp.Status != 200 {
-			utils.CreateLog(rp.Mensaje)
-			return nil, rp
-		}
-		paciente.Citas = citas
-
-		// Obtener precios por especialidad para el paciente
-		precios := []models.PrecioEspecialidad{}
-		precio := models.PrecioEspecialidad{}
-		rowsPrecios, errPrecios := d.db.Query(sqlGetPreciosPorPaciente, paciente.Id)
-		if errPrecios != nil {
-			utils.CreateLog("Error al obtener precios por especialidad: " + errPrecios.Error())
-			// No es un error fatal, podemos continuar sin los precios
-		} else {
-			defer rowsPrecios.Close()
-			for rowsPrecios.Next() {
-				if errScan := rowsPrecios.Scan(&precio.Especialidad, &precio.Precio); errScan != nil {
-					utils.CreateLog("Error al escanear precio por especialidad: " + errScan.Error())
-				} else {
-					precios = append(precios, precio)
-				}
-			}
-		}
-		paciente.Precios = precios
-
-		// Agregar lista de especialistas únicos que han atendido al paciente
-		especialistasVistos := make(map[int]models.EspecialistaAtencion)
-		for _, cita := range citas {
-			// Filtrar por citas completadas o canceladas para la lista de especialistas.
-			if cita.Status == "Completada" {
-				// Si el doctor no está en el mapa, lo agregamos.
-				if _, ok := especialistasVistos[cita.IdDoctor]; !ok {
-					especialistasVistos[cita.IdDoctor] = models.EspecialistaAtencion{
-						ID:           cita.IdDoctor,
-						Nombres:      cita.Especialista,
-						Especialidad: cita.Especialidad,
-					}
-				}
-			}
-		}
-
-		// Convertir el mapa a un slice para el modelo.
-		paciente.Especialistas = make([]models.EspecialistaAtencion, 0, len(especialistasVistos))
-		for _, esp := range especialistasVistos {
-			paciente.Especialistas = append(paciente.Especialistas, esp)
-		}
+		// Inicializar los arrays para evitar nulos en JSON
+		paciente.Citas = []models.CitaModel{}
+		paciente.Precios = []models.PrecioEspecialidad{}
+		paciente.Especialistas = []models.EspecialistaAtencion{}
 		pacientes = append(pacientes, paciente)
 	}
+
+	if len(pacientes) == 0 {
+		rp.Status = 10
+		rp.Mensaje = "Pacientes listado correctamente!"
+		return pacientes, rp
+	}
+
+	// 2. Obtener todas las citas en lote en una sola consulta
+	queryCitas := `
+		SELECT
+			c.id AS cita_id,
+			c.iddoctor,
+			d.nombres AS especialista,
+			d.espec AS especialidad,
+			c.cedula AS paciente_cedula,
+			p.nombres AS paciente,
+			c.motivo,
+			c.inicio,
+			c.fin,
+			c.diagnostico,
+			c.status AS cita_status,
+			c.color,
+			c.montoref,
+			c.tasa,
+			c.montobs,
+			c.pagado,
+			c.saldo
+		FROM medi001.citas c
+		INNER JOIN medi001.doctores d ON c.iddoctor = d.id
+		INNER JOIN medi001.pacientes p ON c.cedula = p.cedula
+		ORDER BY c.inicio DESC;
+	`
+	rowsCitas, errCitas := d.db.Query(queryCitas)
+	citasMap := make(map[string][]models.CitaModel) // clave: cedula
+	if errCitas != nil {
+		utils.CreateLog("Error al obtener citas en lote para pacientes: " + errCitas.Error())
+	} else {
+		defer rowsCitas.Close()
+		for rowsCitas.Next() {
+			var c models.CitaModel
+			errScan := rowsCitas.Scan(
+				&c.Id,
+				&c.IdDoctor,
+				&c.Especialista,
+				&c.Especialidad,
+				&c.Cedula,
+				&c.Paciente,
+				&c.Motivo,
+				&c.Inicio,
+				&c.Fin,
+				&c.Diagnostico,
+				&c.Status,
+				&c.Color,
+				&c.Montoref,
+				&c.Tasa,
+				&c.Montobs,
+				&c.Pagado,
+				&c.Saldo,
+			)
+			if errScan != nil {
+				utils.CreateLog("Error al escanear cita en lote: " + errScan.Error())
+				continue
+			}
+			citasMap[c.Cedula] = append(citasMap[c.Cedula], c)
+		}
+	}
+
+	// 3. Obtener todos los precios por especialidad en lote
+	queryPrecios := `
+		SELECT id_paciente, especialidad, precio 
+		FROM medi001.paciente_precios_especialidad;
+	`
+	rowsPrecios, errPrecios := d.db.Query(queryPrecios)
+	preciosMap := make(map[int][]models.PrecioEspecialidad) // clave: id_paciente
+	if errPrecios != nil {
+		utils.CreateLog("Error al obtener precios en lote para pacientes: " + errPrecios.Error())
+	} else {
+		defer rowsPrecios.Close()
+		for rowsPrecios.Next() {
+			var pr models.PrecioEspecialidad
+			if errScan := rowsPrecios.Scan(&pr.IDPaciente, &pr.Especialidad, &pr.Precio); errScan != nil {
+				utils.CreateLog("Error al escanear precio en lote: " + errScan.Error())
+				continue
+			}
+			preciosMap[pr.IDPaciente] = append(preciosMap[pr.IDPaciente], pr)
+		}
+	}
+
+	// 4. Mapear en memoria (O(N) complejidad de tiempo)
+	for i := range pacientes {
+		id := pacientes[i].Id
+
+		if pacientes[i].Cedula != nil {
+			cedula := *pacientes[i].Cedula
+			if citas, ok := citasMap[cedula]; ok {
+				pacientes[i].Citas = citas
+
+				// Agregar lista de especialistas únicos que han atendido al paciente
+				especialistasVistos := make(map[int]models.EspecialistaAtencion)
+				for _, cita := range citas {
+					if cita.Status == "Completada" {
+						if _, ok := especialistasVistos[cita.IdDoctor]; !ok {
+							especialistasVistos[cita.IdDoctor] = models.EspecialistaAtencion{
+								ID:           cita.IdDoctor,
+								Nombres:      cita.Especialista,
+								Especialidad: cita.Especialidad,
+							}
+						}
+					}
+				}
+				pacientes[i].Especialistas = make([]models.EspecialistaAtencion, 0, len(especialistasVistos))
+				for _, esp := range especialistasVistos {
+					pacientes[i].Especialistas = append(pacientes[i].Especialistas, esp)
+				}
+			}
+		}
+
+		if precios, ok := preciosMap[id]; ok {
+			pacientes[i].Precios = precios
+		}
+	}
+
 	rp.Status = 10
 	rp.Mensaje = "Pacientes listado correctamente!"
 	return pacientes, rp
