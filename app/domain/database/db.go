@@ -204,7 +204,7 @@ func (db *DB) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	if err := db.Conn.PingContext(ctx); err != nil {
+	if err := db.db.PingContext(ctx); err != nil {
 		return fmt.Errorf("database ping failed: %w", err)
 	}
 	return nil
