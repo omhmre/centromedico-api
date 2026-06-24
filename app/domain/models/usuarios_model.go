@@ -78,3 +78,9 @@ type Claims struct {
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
+
+type UsuarioDoctor struct {
+	IdUsuario int64 `json:"id_usuario"`
+	IdDoctor  int64 `json:"id_doctor"`
+}
+

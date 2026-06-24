@@ -303,6 +303,8 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/putdoctores", a.UpdateDoctores())
 	a.Router.HandleFunc("/postdoctor", a.PostDoctor())
 	a.Router.HandleFunc("/deldoctor", a.DelDoctor())
+	a.Router.HandleFunc("/getdoctoresporusuario", a.GetDoctoresPorUsuario())
+	a.Router.HandleFunc("/savedoctoresusuario", a.SaveDoctoresUsuario())
 
 	// Pacientes
 	a.Router.HandleFunc("/getpacientes", a.GetPacientes())

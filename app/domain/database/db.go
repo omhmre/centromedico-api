@@ -81,6 +81,8 @@ type PostDB interface {
 	UpdateUsuario(u models.Usuario) models.Respuesta
 	Login(u models.LoginUsuario) models.LoginData
 	ChangePassword(u models.LoginUsuario) models.Respuesta
+	GetDoctoresPorUsuario(userID int64) ([]models.DoctoresModel, models.Respuesta)
+	SaveDoctoresUsuario(userID int64, doctorIDs []int) models.Respuesta
 	GetTopVentas() ([]models.TopVentas, models.Respuesta)
 	GetVentasMes() ([]models.VentasMensual, models.Respuesta)
 	BackupDatabase() error
