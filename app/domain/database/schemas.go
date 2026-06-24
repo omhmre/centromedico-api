@@ -523,12 +523,69 @@ SET smtp=$2, puerto=$3, usuario=$4, clave=$5, tls=$6 where id = $1;`
 
 const sqlDelPresupuesto = `DELETE FROM empre001.presupuestos `
 
-const sqlGetDoctores = `select d.id, d.nombres, d.espec, d.dir, d.tlf, d.correo, d.whatsapp, d.instagram, 
-d.tasapago from medi001.doctores d order by d.nombres;`
+const sqlGetDoctores = `SELECT 
+    d.id, 
+    COALESCE(d.nombres, '') as nombres, 
+    COALESCE(d.espec, '') as espec, 
+    COALESCE(d.dir, '') as dir, 
+    COALESCE(d.tlf, '') as tlf, 
+    COALESCE(d.correo, '') as correo, 
+    COALESCE(d.whatsapp, '') as whatsapp, 
+    COALESCE(d.instagram, '') as instagram, 
+    COALESCE(d.tasapago, 0.0) as tasapago,
+    COALESCE(d.days_of_week, '[]'::jsonb) as days_of_week, 
+    COALESCE(d.start_time, '08:00') as start_time, 
+    COALESCE(d.end_time, '18:00') as end_time, 
+    COALESCE(d.slot_duration, 45) as slot_duration, 
+    COALESCE(d.monto_cita, 0.0) as monto_cita, 
+    COALESCE(d.es_medico, false) as es_medico,
+    COALESCE(d.titulo, '') as titulo, 
+    COALESCE(d.titulo_academico, '') as titulo_academico, 
+    COALESCE(d.num_mpps, '') as num_mpps, 
+    COALESCE(d.num_cm, '') as num_cm, 
+    COALESCE(d.rif, '') as rif, 
+    COALESCE(d.servicios, '[]'::jsonb) as servicios, 
+    COALESCE(d.cedula, '') as cedula,
+    COALESCE(to_char(d.fecha_nacimiento, 'YYYY-MM-DD'), '') as fecha_nacimiento, 
+    COALESCE(to_char(d.fecha_ingreso, 'YYYY-MM-DD'), '') as fecha_ingreso, 
+    COALESCE(d.sueldo, 0.0) as sueldo, 
+    COALESCE(d.frecuencia_pago, 'Mensual') as frecuencia_pago, 
+    COALESCE(d.activo, true) as activo,
+    COALESCE(d.fecha_retiro, '') as fecha_retiro, 
+    COALESCE(d.motivo_retiro, '') as motivo_retiro
+FROM medi001.doctores d 
+ORDER BY d.nombres;`
 
-const sqlUpdDoctores = `update medi001.doctores set 
-nombres = $2, espec = $3, dir = $4, tlf = $5, correo = $6, whatsapp = $7, instagram = $8, tasapago = $9 
-where id = $1;`
+const sqlUpdDoctores = `UPDATE medi001.doctores SET 
+    nombres = $2, 
+    espec = $3, 
+    dir = $4, 
+    tlf = $5, 
+    correo = $6, 
+    whatsapp = $7, 
+    instagram = $8, 
+    tasapago = $9,
+    days_of_week = $10::jsonb,
+    start_time = $11,
+    end_time = $12,
+    slot_duration = $13,
+    monto_cita = $14,
+    es_medico = $15,
+    titulo = $16,
+    titulo_academico = $17,
+    num_mpps = $18,
+    num_cm = $19,
+    rif = $20,
+    servicios = $21::jsonb,
+    cedula = $22,
+    fecha_nacimiento = CASE WHEN $23 = '' THEN NULL ELSE $23::date END,
+    fecha_ingreso = CASE WHEN $24 = '' THEN NULL ELSE $24::date END,
+    sueldo = $25,
+    frecuencia_pago = $26,
+    activo = $27,
+    fecha_retiro = $28,
+    motivo_retiro = $29
+WHERE id = $1;`
 
 const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc
 FROM medi001.pacientes;`
@@ -543,9 +600,18 @@ WHERE id=$1;`
 
 const sqlDelPaciente = `DELETE FROM medi001.pacientes WHERE id = $1;`
 
-const sqlPostDoctor = `INSERT INTO medi001.doctores
-(id, nombres, espec, dir, tlf, correo, whatsapp, instagram, tasapago)
-VALUES(nextval('medi001.doctores_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8);`
+const sqlPostDoctor = `INSERT INTO medi001.doctores (
+    nombres, espec, dir, tlf, correo, whatsapp, instagram, tasapago,
+    days_of_week, start_time, end_time, slot_duration, monto_cita, es_medico,
+    titulo, titulo_academico, num_mpps, num_cm, rif, servicios, cedula,
+    fecha_nacimiento, fecha_ingreso, sueldo, frecuencia_pago, activo,
+    fecha_retiro, motivo_retiro
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20::jsonb, $21,
+    CASE WHEN $22 = '' THEN NULL ELSE $22::date END,
+    CASE WHEN $23 = '' THEN NULL ELSE $23::date END,
+    $24, $25, $26, $27, $28
+);`
 
 const sqlDelDoctor = `DELETE FROM medi001.doctores WHERE id = $1;`
 

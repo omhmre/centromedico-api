@@ -11,7 +11,36 @@ func (d *DB) GetDoctoresPorUsuario(userID int64) ([]models.DoctoresModel, models
 	doctores := []models.DoctoresModel{}
 
 	query := `
-		SELECT d.id, d.nombres, d.espec, d.dir, d.tlf, d.correo, d.whatsapp, d.instagram, d.tasapago
+		SELECT 
+			d.id, 
+			COALESCE(d.nombres, '') as nombres, 
+			COALESCE(d.espec, '') as espec, 
+			COALESCE(d.dir, '') as dir, 
+			COALESCE(d.tlf, '') as tlf, 
+			COALESCE(d.correo, '') as correo, 
+			COALESCE(d.whatsapp, '') as whatsapp, 
+			COALESCE(d.instagram, '') as instagram, 
+			COALESCE(d.tasapago, 0.0) as tasapago,
+			COALESCE(d.days_of_week, '[]'::jsonb) as days_of_week, 
+			COALESCE(d.start_time, '08:00') as start_time, 
+			COALESCE(d.end_time, '18:00') as end_time, 
+			COALESCE(d.slot_duration, 45) as slot_duration, 
+			COALESCE(d.monto_cita, 0.0) as monto_cita, 
+			COALESCE(d.es_medico, false) as es_medico,
+			COALESCE(d.titulo, '') as titulo, 
+			COALESCE(d.titulo_academico, '') as titulo_academico, 
+			COALESCE(d.num_mpps, '') as num_mpps, 
+			COALESCE(d.num_cm, '') as num_cm, 
+			COALESCE(d.rif, '') as rif, 
+			COALESCE(d.servicios, '[]'::jsonb) as servicios, 
+			COALESCE(d.cedula, '') as cedula,
+			COALESCE(to_char(d.fecha_nacimiento, 'YYYY-MM-DD'), '') as fecha_nacimiento, 
+			COALESCE(to_char(d.fecha_ingreso, 'YYYY-MM-DD'), '') as fecha_ingreso, 
+			COALESCE(d.sueldo, 0.0) as sueldo, 
+			COALESCE(d.frecuencia_pago, 'Mensual') as frecuencia_pago, 
+			COALESCE(d.activo, true) as activo,
+			COALESCE(d.fecha_retiro, '') as fecha_retiro, 
+			COALESCE(d.motivo_retiro, '') as motivo_retiro
 		FROM seguridad.usuario_doctor ud
 		INNER JOIN medi001.doctores d ON ud.id_doctor = d.id
 		WHERE ud.id_usuario = $1
@@ -28,18 +57,7 @@ func (d *DB) GetDoctoresPorUsuario(userID int64) ([]models.DoctoresModel, models
 	defer rows.Close()
 
 	for rows.Next() {
-		var doc models.DoctoresModel
-		err := rows.Scan(
-			&doc.Id,
-			&doc.Nombres,
-			&doc.Espec,
-			&doc.Dir,
-			&doc.Tlf,
-			&doc.Correo,
-			&doc.Whatsapp,
-			&doc.Instagram,
-			&doc.Tasapago,
-		)
+		doc, err := scanDoctorRow(rows)
 		if err != nil {
 			rp.Status = 500
 			rp.Mensaje = "Error al escanear doctor asignado: " + err.Error()

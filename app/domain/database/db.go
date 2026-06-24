@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -663,10 +664,112 @@ func (d *DB) DelPrecioEspecialidad(p models.PrecioEspecialidad) models.Respuesta
 	return rp
 }
 
+func scanDoctorRow(rows *sql.Rows) (models.DoctoresModel, error) {
+	var doctor models.DoctoresModel
+	var serviciosBytes []byte
+	var daysOfWeekBytes []byte
+
+	err := rows.Scan(
+		&doctor.Id,
+		&doctor.Nombres,
+		&doctor.Espec,
+		&doctor.Dir,
+		&doctor.Tlf,
+		&doctor.Correo,
+		&doctor.Whatsapp,
+		&doctor.Instagram,
+		&doctor.Tasapago,
+		&daysOfWeekBytes,
+		&doctor.StartTime,
+		&doctor.EndTime,
+		&doctor.SlotDuration,
+		&doctor.MontoCita,
+		&doctor.EsMedico,
+		&doctor.Titulo,
+		&doctor.TituloAcademico,
+		&doctor.NumMPPS,
+		&doctor.NumCM,
+		&doctor.Rif,
+		&serviciosBytes,
+		&doctor.Cedula,
+		&doctor.FechaNacimiento,
+		&doctor.FechaIngreso,
+		&doctor.Sueldo,
+		&doctor.FrecuenciaPago,
+		&doctor.Activo,
+		&doctor.FechaRetiro,
+		&doctor.MotivoRetiro,
+	)
+	if err != nil {
+		return doctor, err
+	}
+
+	// Deserializar servicios
+	if len(serviciosBytes) > 0 {
+		if err := json.Unmarshal(serviciosBytes, &doctor.Servicios); err != nil {
+			utils.CreateLog("Error unmarshaling doctor servicios: " + err.Error())
+		}
+	} else {
+		doctor.Servicios = []models.DoctorService{}
+	}
+
+	// Deserializar days_of_week
+	if len(daysOfWeekBytes) > 0 {
+		if err := json.Unmarshal(daysOfWeekBytes, &doctor.DaysOfWeek); err != nil {
+			utils.CreateLog("Error unmarshaling doctor days_of_week: " + err.Error())
+		}
+	} else {
+		doctor.DaysOfWeek = []int{1, 2, 3, 4, 5}
+	}
+
+	return doctor, nil
+}
+
 func (d *DB) UpdDoctores(i models.DoctoresModel) models.Respuesta {
 	var rp models.Respuesta
-	resp, err := d.db.Exec(sqlUpdDoctores, i.Id, i.Nombres, i.Espec, i.Dir, i.Tlf, i.Correo, i.Whatsapp,
-		i.Instagram, i.Tasapago)
+
+	serviciosBytes, errServ := json.Marshal(i.Servicios)
+	if errServ != nil {
+		serviciosBytes = []byte("[]")
+	}
+
+	daysOfWeekBytes, errDays := json.Marshal(i.DaysOfWeek)
+	if errDays != nil {
+		daysOfWeekBytes = []byte("[1,2,3,4,5]")
+	}
+
+	resp, err := d.db.Exec(
+		sqlUpdDoctores,
+		i.Id,
+		i.Nombres,
+		i.Espec,
+		i.Dir,
+		i.Tlf,
+		i.Correo,
+		i.Whatsapp,
+		i.Instagram,
+		i.Tasapago,
+		string(daysOfWeekBytes),
+		i.StartTime,
+		i.EndTime,
+		i.SlotDuration,
+		i.MontoCita,
+		i.EsMedico,
+		i.Titulo,
+		i.TituloAcademico,
+		i.NumMPPS,
+		i.NumCM,
+		i.Rif,
+		string(serviciosBytes),
+		i.Cedula,
+		i.FechaNacimiento,
+		i.FechaIngreso,
+		i.Sueldo,
+		i.FrecuenciaPago,
+		i.Activo,
+		i.FechaRetiro,
+		i.MotivoRetiro,
+	)
 	if err != nil {
 		rp.Status = 500
 		rp.Mensaje = "No se pudo Actualizar la Informacion de Doctores. " + err.Error()
@@ -693,28 +796,16 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 	rows, err := d.db.Query(sqlGetDoctores)
 	if err != nil {
 		rp.Status = 502
-		rp.Mensaje = "No Hay Productos Registrados! " + err.Error()
-		// utils.CreateLog(err.Error())
+		rp.Mensaje = "No Hay Especialistas Registrados! " + err.Error()
 		return nil, rp
 	}
 	defer rows.Close()
 	doctores := []models.DoctoresModel{}
-	doctor := models.DoctoresModel{}
 	for rows.Next() {
-		err2 :=
-			rows.Scan(
-				&doctor.Id,
-				&doctor.Nombres,
-				&doctor.Espec,
-				&doctor.Dir,
-				&doctor.Tlf,
-				&doctor.Correo,
-				&doctor.Whatsapp,
-				&doctor.Instagram,
-				&doctor.Tasapago,
-			)
+		doctor, err2 := scanDoctorRow(rows)
 		if err2 != nil {
-			utils.CreateLog(err2.Error())
+			utils.CreateLog("Error al escanear doctor: " + err2.Error())
+			continue
 		}
 		doctores = append(doctores, doctor)
 	}
@@ -725,8 +816,48 @@ func (d *DB) GetDoctores() ([]models.DoctoresModel, models.Respuesta) {
 
 func (d *DB) PostDoctor(i models.DoctoresModel) models.Respuesta {
 	var rp models.Respuesta
-	resp, err := d.db.Exec(sqlPostDoctor, i.Nombres, i.Espec, i.Dir, i.Tlf,
-		i.Correo, i.Whatsapp, i.Instagram, i.Tasapago)
+
+	serviciosBytes, errServ := json.Marshal(i.Servicios)
+	if errServ != nil {
+		serviciosBytes = []byte("[]")
+	}
+
+	daysOfWeekBytes, errDays := json.Marshal(i.DaysOfWeek)
+	if errDays != nil {
+		daysOfWeekBytes = []byte("[1,2,3,4,5]")
+	}
+
+	resp, err := d.db.Exec(
+		sqlPostDoctor,
+		i.Nombres,
+		i.Espec,
+		i.Dir,
+		i.Tlf,
+		i.Correo,
+		i.Whatsapp,
+		i.Instagram,
+		i.Tasapago,
+		string(daysOfWeekBytes),
+		i.StartTime,
+		i.EndTime,
+		i.SlotDuration,
+		i.MontoCita,
+		i.EsMedico,
+		i.Titulo,
+		i.TituloAcademico,
+		i.NumMPPS,
+		i.NumCM,
+		i.Rif,
+		string(serviciosBytes),
+		i.Cedula,
+		i.FechaNacimiento,
+		i.FechaIngreso,
+		i.Sueldo,
+		i.FrecuenciaPago,
+		i.Activo,
+		i.FechaRetiro,
+		i.MotivoRetiro,
+	)
 	if err != nil {
 		rp.Status = 501
 		rp.Mensaje = "No se pudo Agregar la Informacion del Especialista. " + err.Error()
