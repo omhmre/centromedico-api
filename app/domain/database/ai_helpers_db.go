@@ -2,8 +2,12 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"math"
+	"net/http"
 	"time"
+
 	"omhmre.com/centromedico/app/domain/models"
 	"omhmre.com/centromedico/app/domain/utils"
 )
@@ -348,17 +352,59 @@ func (d *DB) UpdPacienteStatus(paciente models.PacientesModel) models.Respuesta 
 	return rp
 }
 
+type ExchangeRateAPIResponse struct {
+	Promedio float64 `json:"promedio"`
+}
+
 func (d *DB) FetchExchangeRate() (float64, models.Respuesta) {
 	var rp models.Respuesta
-	var tasa float64
-	err := d.db.QueryRow(`select tasabs from empre001.divisas where id = 1;`).Scan(&tasa)
+
+	// 1. Try to fetch the exchange rate online
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://ve.dolarapi.com/v1/dolares/oficial")
+	if err == nil && resp.StatusCode == http.StatusOK {
+		defer resp.Body.Close()
+		var apiResp ExchangeRateAPIResponse
+		if errDec := json.NewDecoder(resp.Body).Decode(&apiResp); errDec == nil {
+			if vesRate := apiResp.Promedio; vesRate > 0 {
+				// Redondear a 2 decimales
+				vesRate = math.Round(vesRate*100) / 100
+
+				// Update divisas rate in the database for USD (id = 1)
+				_, errUpd := d.db.Exec(`UPDATE empre001.divisas SET tasabs = $1, fechatasa = NOW() WHERE id = 1;`, vesRate)
+				if errUpd != nil {
+					utils.CreateLog("Error saving new exchange rate to divisas table: " + errUpd.Error())
+				}
+				// Update instpagos rate to maintain consistency
+				_, errUpd2 := d.db.Exec(`UPDATE empre001.instpagos SET tasa = $1 WHERE simbolo = '$';`, vesRate)
+				if errUpd2 != nil {
+					utils.CreateLog("Error saving new exchange rate to instpagos table: " + errUpd2.Error())
+				}
+
+				rp.Status = 200
+				rp.Mensaje = fmt.Sprintf("Tasa de cambio actualizada online a %.2f bolívares correctamente.", vesRate)
+				return vesRate, rp
+			}
+		}
+	}
+
+	// Log errors if online update fails
 	if err != nil {
+		utils.CreateLog("Error fetching online exchange rate: " + err.Error())
+	} else if resp != nil {
+		utils.CreateLog(fmt.Sprintf("Error fetching online exchange rate: HTTP status %d", resp.StatusCode))
+	}
+
+	// 2. Fallback: retrieve local exchange rate from database if online fetch fails
+	var tasa float64
+	errDb := d.db.QueryRow(`select tasabs from empre001.divisas where id = 1;`).Scan(&tasa)
+	if errDb != nil {
 		rp.Status = 500
-		rp.Mensaje = "Error al obtener tasa de cambio: " + err.Error()
+		rp.Mensaje = "Error al obtener tasa de cambio local: " + errDb.Error()
 		return 0, rp
 	}
 	rp.Status = 200
-	rp.Mensaje = "Tasa de cambio obtenida correctamente"
+	rp.Mensaje = "Tasa de cambio obtenida de la base de datos local (Fallback)"
 	return tasa, rp
 }
 
