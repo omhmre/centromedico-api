@@ -465,10 +465,6 @@ func (d *DB) GetPacientes() ([]models.PacientesModel, models.Respuesta) {
 			&paciente.CXC,
 			&paciente.Matricula,
 			&paciente.Status,
-			&paciente.IsBlacklisted,
-			&paciente.BlacklistReason,
-			&paciente.CreatedAt,
-			&paciente.LastPaymentDate,
 		)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())

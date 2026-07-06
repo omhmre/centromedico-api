@@ -587,7 +587,7 @@ const sqlUpdDoctores = `UPDATE medi001.doctores SET
     motivo_retiro = $29
 WHERE id = $1;`
 
-const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, matricula, status, is_blacklisted, blacklist_reason, created_at, last_payment_date
+const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, matricula, status
 FROM medi001.pacientes;`
 
 const sqlPostPaciente = `INSERT INTO medi001.pacientes
