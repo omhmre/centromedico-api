@@ -773,24 +773,56 @@ VALUES ($1, $2, $3, $4) RETURNING id;`
 
 const sqlGetSocialEvaluation = `SELECT 
     e.id, e.cedula_paciente, e.id_especialista, d.nombres AS nombre_especialista,
-    e.grupo_familiar, e.situacion_economica, e.vivienda_entorno, e.aspecto_salud, 
-    e.diagnostico_social, e.plan_accion, e.created_at, e.updated_at 
+    e.lugar_nacimiento, e.grado_escolar, e.escolaridad, e.referido_por,
+    e.madre_nombre, e.madre_edad, e.madre_ci, e.madre_telefono, e.madre_ocupacion, e.madre_correo, e.madre_direccion,
+    e.padre_nombre, e.padre_edad, e.padre_ci, e.padre_telefono, e.padre_ocupacion, e.padre_direccion,
+    e.antecedentes_desarrollo, e.grupo_familiar, e.situacion_economica, e.vivienda_entorno, e.aspecto_salud, 
+    e.diagnostico_social, e.conclusion, e.plan_accion, e.entregado, e.unlocked_by, e.unlocked_at, e.unlock_reason, e.created_at, e.updated_at 
 FROM medi001.evaluaciones_sociales e
 INNER JOIN medi001.doctores d ON e.id_especialista = d.id
 WHERE e.cedula_paciente = $1;`
 
 const sqlUpsertSocialEvaluation = `
 INSERT INTO medi001.evaluaciones_sociales 
-(cedula_paciente, id_especialista, grupo_familiar, situacion_economica, vivienda_entorno, aspecto_salud, diagnostico_social, plan_accion)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+(cedula_paciente, id_especialista, lugar_nacimiento, grado_escolar, escolaridad, referido_por,
+madre_nombre, madre_edad, madre_ci, madre_telefono, madre_ocupacion, madre_correo, madre_direccion,
+padre_nombre, padre_edad, padre_ci, padre_telefono, padre_ocupacion, padre_direccion,
+antecedentes_desarrollo, grupo_familiar, situacion_economica, vivienda_entorno, aspecto_salud, diagnostico_social, conclusion, plan_accion, entregado)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
 ON CONFLICT (cedula_paciente) DO UPDATE SET 
 id_especialista = EXCLUDED.id_especialista,
+lugar_nacimiento = EXCLUDED.lugar_nacimiento,
+grado_escolar = EXCLUDED.grado_escolar,
+escolaridad = EXCLUDED.escolaridad,
+referido_por = EXCLUDED.referido_por,
+madre_nombre = EXCLUDED.madre_nombre,
+madre_edad = EXCLUDED.madre_edad,
+madre_ci = EXCLUDED.madre_ci,
+madre_telefono = EXCLUDED.madre_telefono,
+madre_ocupacion = EXCLUDED.madre_ocupacion,
+madre_correo = EXCLUDED.madre_correo,
+madre_direccion = EXCLUDED.madre_direccion,
+padre_nombre = EXCLUDED.padre_nombre,
+padre_edad = EXCLUDED.padre_edad,
+padre_ci = EXCLUDED.padre_ci,
+padre_telefono = EXCLUDED.padre_telefono,
+padre_ocupacion = EXCLUDED.padre_ocupacion,
+padre_direccion = EXCLUDED.padre_direccion,
+antecedentes_desarrollo = EXCLUDED.antecedentes_desarrollo,
 grupo_familiar = EXCLUDED.grupo_familiar,
 situacion_economica = EXCLUDED.situacion_economica,
 vivienda_entorno = EXCLUDED.vivienda_entorno,
 aspecto_salud = EXCLUDED.aspecto_salud,
 diagnostico_social = EXCLUDED.diagnostico_social,
+conclusion = EXCLUDED.conclusion,
 plan_accion = EXCLUDED.plan_accion,
+entregado = EXCLUDED.entregado,
 updated_at = NOW()
+WHERE medi001.evaluaciones_sociales.entregado = false
 RETURNING id;`
 
+const sqlUnlockSocialEvaluation = `
+UPDATE medi001.evaluaciones_sociales
+SET entregado = false, unlocked_by = $1, unlock_reason = $2, unlocked_at = NOW(), updated_at = NOW()
+WHERE cedula_paciente = $3
+RETURNING id;`

@@ -55,3 +55,35 @@ func (a *App) UpsertSocialEvaluationHandler() http.HandlerFunc {
 		json.NewEncoder(w).Encode(eval)
 	}
 }
+
+// UnlockSocialEvaluationHandler maneja el desbloqueo de la evaluación social
+func (a *App) UnlockSocialEvaluationHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Cedula string `json:"cedula"`
+			UserId int    `json:"user_id"`
+			Reason string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Body inválido", http.StatusBadRequest)
+			return
+		}
+
+		if req.Cedula == "" || req.UserId == 0 || req.Reason == "" {
+			http.Error(w, "Faltan parámetros", http.StatusBadRequest)
+			return
+		}
+
+		id, err := a.DB.UnlockSocialEvaluation(req.Cedula, req.UserId, req.Reason)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":      id,
+			"message": "Evaluación desbloqueada correctamente",
+		})
+	}
+}

@@ -297,6 +297,14 @@ func (a *App) initializeRoutes() {
 		}
 	})
 
+	a.Router.HandleFunc("/social_evaluation/unlock", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			a.UnlockSocialEvaluationHandler()(w, r)
+		} else {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		}
+	})
+
 
 	// Doctores
 	a.Router.HandleFunc("/getdoctores", a.GetDoctores())

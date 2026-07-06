@@ -154,6 +154,7 @@ type PostDB interface {
 	InsertClinicalAttachment(a *models.ClinicalAttachment) (int, error)
 	GetSocialEvaluation(cedula string) (*models.SocialEvaluation, error)
 	UpsertSocialEvaluation(e *models.SocialEvaluation) (int, error)
+	UnlockSocialEvaluation(cedula string, unlockedBy int, reason string) (int, error)
 
 	// Egresos (Declaración temporal para compilación)
 	GetEgresos(f models.Fechas) ([]models.Egreso, models.Respuesta)
