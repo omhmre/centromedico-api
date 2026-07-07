@@ -358,6 +358,7 @@ func (d *DB) UpdPaciente(i models.PacientesModel) models.Respuesta {
 		i.CXC,           // $10
 		i.Matricula,     // $11
 		i.Status,        // $12
+		i.Genero,        // $13
 	)
 	if err != nil {
 		rp.Status = 500
@@ -395,7 +396,7 @@ func (d *DB) PostPaciente(i models.PacientesModel) models.Respuesta {
 	var newID int
 	// La consulta de inserción devuelve el nuevo ID. Usamos QueryRow para capturarlo.
 	err = tx.QueryRow(sqlPostPaciente, i.Cedula, i.Nombres, i.Fenac, i.Representante, i.Whatsapp,
-		i.Direccion, i.Correo, i.Diagnostico, i.CXC, i.Matricula, i.Status).Scan(&newID)
+		i.Direccion, i.Correo, i.Diagnostico, i.CXC, i.Matricula, i.Status, i.Genero).Scan(&newID)
 
 	if err != nil {
 		tx.Rollback() // Revertir la transacción en caso de error
@@ -465,6 +466,7 @@ func (d *DB) GetPacientes() ([]models.PacientesModel, models.Respuesta) {
 			&paciente.CXC,
 			&paciente.Matricula,
 			&paciente.Status,
+			&paciente.Genero,
 		)
 		if err2 != nil {
 			utils.CreateLog(err2.Error())

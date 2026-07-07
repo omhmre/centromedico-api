@@ -587,15 +587,15 @@ const sqlUpdDoctores = `UPDATE medi001.doctores SET
     motivo_retiro = $29
 WHERE id = $1;`
 
-const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, matricula, status
+const sqlGetPacientes = `SELECT id, cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, matricula, status, genero
 FROM medi001.pacientes;`
 
 const sqlPostPaciente = `INSERT INTO medi001.pacientes
-(cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, matricula, status)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id;`
+(cedula, nombres, fenac, representante, whatsapp, direccion, correo, diagnostico, cxc, matricula, status, genero)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
 
 const sqlUpdPaciente = `UPDATE medi001.pacientes
-SET cedula=$2, nombres=$3, fenac=$4, representante=$5, whatsapp=$6, direccion=$7, correo=$8, diagnostico=$9, cxc=$10, matricula=$11, status=$12
+SET cedula=$2, nombres=$3, fenac=$4, representante=$5, whatsapp=$6, direccion=$7, correo=$8, diagnostico=$9, cxc=$10, matricula=$11, status=$12, genero=$13
 WHERE id=$1;`
 
 const sqlDelPaciente = `DELETE FROM medi001.pacientes WHERE id = $1;`

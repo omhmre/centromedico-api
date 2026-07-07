@@ -10,6 +10,7 @@ type PacientesModel struct {
 	Cedula        *string                `json:"cedula,omitempty"`
 	Nombres       string                 `json:"nombres"`
 	Fenac         time.Time              `json:"fenac"`
+	Genero        *string                `json:"genero,omitempty"`
 	Matricula     *bool                  `json:"matricula,omitempty"` // New field
 	Status        *string                `json:"status,omitempty"`    // New field
 	Representante *string                `json:"representante,omitempty"`
