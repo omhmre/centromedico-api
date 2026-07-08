@@ -818,7 +818,7 @@ conclusion = EXCLUDED.conclusion,
 plan_accion = EXCLUDED.plan_accion,
 entregado = EXCLUDED.entregado,
 updated_at = NOW()
-WHERE medi001.evaluaciones_sociales.entregado = false
+WHERE medi001.evaluaciones_sociales.entregado = false OR medi001.evaluaciones_sociales.entregado IS NULL
 RETURNING id;`
 
 const sqlUnlockSocialEvaluation = `
