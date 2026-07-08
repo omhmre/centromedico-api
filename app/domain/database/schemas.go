@@ -787,8 +787,8 @@ INSERT INTO medi001.evaluaciones_sociales
 (cedula_paciente, id_especialista, lugar_nacimiento, grado_escolar, escolaridad, referido_por,
 madre_nombre, madre_edad, madre_ci, madre_telefono, madre_ocupacion, madre_correo, madre_direccion,
 padre_nombre, padre_edad, padre_ci, padre_telefono, padre_ocupacion, padre_direccion,
-antecedentes_desarrollo, grupo_familiar, situacion_economica, vivienda_entorno, aspecto_salud, diagnostico_social, conclusion, plan_accion, entregado)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+antecedentes_desarrollo, grupo_familiar, situacion_economica, vivienda_entorno, aspecto_salud, diagnostico_social, conclusion, plan_accion, entregado, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
 ON CONFLICT (cedula_paciente) DO UPDATE SET 
 id_especialista = EXCLUDED.id_especialista,
 lugar_nacimiento = EXCLUDED.lugar_nacimiento,
@@ -817,6 +817,7 @@ diagnostico_social = EXCLUDED.diagnostico_social,
 conclusion = EXCLUDED.conclusion,
 plan_accion = EXCLUDED.plan_accion,
 entregado = EXCLUDED.entregado,
+created_at = EXCLUDED.created_at,
 updated_at = NOW()
 WHERE medi001.evaluaciones_sociales.entregado = false OR medi001.evaluaciones_sociales.entregado IS NULL
 RETURNING id;`

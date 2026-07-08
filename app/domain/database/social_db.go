@@ -86,6 +86,7 @@ func (d *DB) UpsertSocialEvaluation(e *models.SocialEvaluation) (int, error) {
 		e.Conclusion,
 		e.PlanAccion,
 		e.Entregado,
+		e.CreatedAt,
 	).Scan(&id)
 	if err != nil {
 		log.Printf("Error upserting social evaluation: %v", err)
