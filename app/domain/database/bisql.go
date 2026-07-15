@@ -5,7 +5,7 @@ SELECT
     COUNT(*)::integer AS total_citas,
     COUNT(CASE WHEN status = 'Completada' THEN 1 END)::integer AS completadas,
     COUNT(CASE WHEN status = 'Cancelada' THEN 1 END)::integer AS canceladas,
-    COUNT(CASE WHEN status = 'Pendiente' THEN 1 END)::integer AS pendientes,
+    COUNT(CASE WHEN status IN ('Pendiente', 'Confirmada') THEN 1 END)::integer AS pendientes,
     COALESCE(SUM(CASE WHEN status = 'Completada' THEN montoref ELSE 0 END), 0)::double precision AS total_ingresos_usd,
     COALESCE(AVG(CASE WHEN status = 'Completada' THEN montoref END), 0)::double precision AS ingreso_por_cita,
     COUNT(DISTINCT cedula)::integer AS pacientes_unicos,
