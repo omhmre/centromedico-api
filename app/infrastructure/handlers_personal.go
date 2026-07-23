@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"omhmre.com/centromedico/app/domain/models"
@@ -53,12 +54,16 @@ func (a *App) UpdPersonal() http.HandlerFunc {
 
 func (a *App) DelPersonal() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var i models.Id
-		if err := json.NewDecoder(r.Body).Decode(&i); err != nil {
-			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Cuerpo de solicitud inválido"}, http.StatusBadRequest)
+		var payload struct {
+			ID interface{} `json:"id"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		if err != nil || payload.ID == nil {
+			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Cuerpo de solicitud o ID inválido"}, http.StatusBadRequest)
 			return
 		}
-		rp := a.DB.DelPersonal(i)
+		idStr := fmt.Sprintf("%v", payload.ID)
+		rp := a.DB.DelPersonal(models.Id{Id: idStr})
 		if rp.Status >= 400 {
 			sendResponse(w, r, rp, http.StatusInternalServerError)
 		} else {
@@ -66,3 +71,4 @@ func (a *App) DelPersonal() http.HandlerFunc {
 		}
 	}
 }
+
