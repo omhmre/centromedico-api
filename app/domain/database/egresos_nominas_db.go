@@ -312,26 +312,277 @@ func (d *DB) DelConfigEgreso(i models.Id) models.Respuesta {
 	return rp
 }
 
-// IMPLEMENTACIONES DE NÓMINA (Para resolver dependencias de compilación)
+// ensureNominasTable garantiza que la tabla medi001.nominas exista en PostgreSQL.
+func (d *DB) ensureNominasTable() {
+	query := `
+	CREATE TABLE IF NOT EXISTS medi001.nominas (
+		id SERIAL PRIMARY KEY,
+		personal_id INT NOT NULL,
+		fecha_inicio DATE NOT NULL,
+		fecha_fin DATE NOT NULL,
+		tipo_periodo VARCHAR(50) DEFAULT 'Semanal',
+		monto_base DECIMAL(15, 2) DEFAULT 0,
+		bonificaciones DECIMAL(15, 2) DEFAULT 0,
+		deducciones DECIMAL(15, 2) DEFAULT 0,
+		monto_total DECIMAL(15, 2) DEFAULT 0,
+		status VARCHAR(50) DEFAULT 'Pendiente',
+		fecha_pago TIMESTAMP,
+		egreso_id INT,
+		notas TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+	if _, err := d.db.Exec(query); err != nil {
+		utils.CreateLog("Error asegurando tabla medi001.nominas: " + err.Error())
+	}
+}
+
+// IMPLEMENTACIONES DE NÓMINA
 
 func (d *DB) GetNominas(desde string, hasta string) ([]models.NominaModel, models.Respuesta) {
-	return []models.NominaModel{}, models.Respuesta{Status: 200, Mensaje: "OK"}
+	d.ensureNominasTable()
+	var rp models.Respuesta
+
+	var query string
+	var rows *sql.Rows
+	var err error
+
+	query = `
+		SELECT n.id, n.personal_id, COALESCE(p.nombre, 'Empleado') AS nombre_personal,
+		       n.fecha_inicio, n.fecha_fin, COALESCE(n.tipo_periodo, 'Semanal'),
+		       COALESCE(n.monto_base, 0), COALESCE(n.bonificaciones, 0), COALESCE(n.deducciones, 0),
+		       COALESCE(n.monto_total, 0), COALESCE(n.status, 'Pendiente'),
+		       n.fecha_pago, COALESCE(n.egreso_id, 0), COALESCE(n.notas, ''), n.created_at, n.updated_at
+		FROM medi001.nominas n
+		LEFT JOIN medi001.personal p ON n.personal_id = p.id
+		WHERE n.fecha_inicio >= $1::date AND n.fecha_fin <= $2::date
+		ORDER BY n.id DESC;
+	`
+	rows, err = d.db.Query(query, desde, hasta)
+	if err != nil {
+		// Consulta sin filtro si ocurre algún error de parseo de formato de fecha
+		query = `
+			SELECT n.id, n.personal_id, COALESCE(p.nombre, 'Empleado') AS nombre_personal,
+			       n.fecha_inicio, n.fecha_fin, COALESCE(n.tipo_periodo, 'Semanal'),
+			       COALESCE(n.monto_base, 0), COALESCE(n.bonificaciones, 0), COALESCE(n.deducciones, 0),
+			       COALESCE(n.monto_total, 0), COALESCE(n.status, 'Pendiente'),
+			       n.fecha_pago, COALESCE(n.egreso_id, 0), COALESCE(n.notas, ''), n.created_at, n.updated_at
+			FROM medi001.nominas n
+			LEFT JOIN medi001.personal p ON n.personal_id = p.id
+			ORDER BY n.id DESC;
+		`
+		rows, err = d.db.Query(query)
+	}
+
+	if err != nil {
+		utils.CreateLog("Error al consultar nóminas: " + err.Error())
+		rp.Status = 500
+		rp.Mensaje = "Error al consultar nóminas: " + err.Error()
+		return []models.NominaModel{}, rp
+	}
+	defer rows.Close()
+
+	list := []models.NominaModel{}
+	for rows.Next() {
+		var n models.NominaModel
+		var fInicio, fFin, fPago, cAt, uAt sql.NullTime
+
+		errScan := rows.Scan(
+			&n.Id, &n.PersonalId, &n.NombrePersonal,
+			&fInicio, &fFin, &n.TipoPeriodo,
+			&n.MontoBase, &n.Bonificaciones, &n.Deducciones,
+			&n.MontoTotal, &n.Status,
+			&fPago, &n.EgresoId, &n.Notas, &cAt, &uAt,
+		)
+		if errScan != nil {
+			utils.CreateLog("Error al escanear nómina: " + errScan.Error())
+			continue
+		}
+
+		if fInicio.Valid {
+			n.FechaInicio = fInicio.Time
+		}
+		if fFin.Valid {
+			n.FechaFin = fFin.Time
+		}
+		if fPago.Valid {
+			n.FechaPago = &fPago.Time
+		}
+		if cAt.Valid {
+			n.CreatedAt = cAt.Time
+		}
+		if uAt.Valid {
+			n.UpdatedAt = uAt.Time
+		}
+
+		list = append(list, n)
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "OK"
+	return list, rp
 }
 
 func (d *DB) PostNomina(n models.NominaModel) models.Respuesta {
-	return models.Respuesta{Status: 200, Mensaje: "Nómina registrada"}
+	d.ensureNominasTable()
+	var rp models.Respuesta
+
+	query := `
+		INSERT INTO medi001.nominas (
+			personal_id, fecha_inicio, fecha_fin, tipo_periodo, monto_base, bonificaciones, deducciones, monto_total, status, notas, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		RETURNING id;
+	`
+
+	var id int
+	err := d.db.QueryRow(
+		query,
+		n.PersonalId,
+		n.FechaInicio,
+		n.FechaFin,
+		n.TipoPeriodo,
+		n.MontoBase,
+		n.Bonificaciones,
+		n.Deducciones,
+		n.MontoTotal,
+		n.Status,
+		n.Notas,
+	).Scan(&id)
+
+	if err != nil {
+		utils.CreateLog("Error al insertar nómina: " + err.Error())
+		rp.Status = 500
+		rp.Mensaje = "Error al guardar nómina: " + err.Error()
+		return rp
+	}
+
+	rp.Status = 200
+	rp.Mensaje = fmt.Sprintf("Nómina registrada con ID %d", id)
+	return rp
 }
 
 func (d *DB) UpdNomina(n models.NominaModel) models.Respuesta {
-	return models.Respuesta{Status: 200, Mensaje: "Nómina actualizada"}
+	d.ensureNominasTable()
+	var rp models.Respuesta
+
+	if n.Id <= 0 {
+		rp.Status = 400
+		rp.Mensaje = "ID de nómina inválido"
+		return rp
+	}
+
+	query := `
+		UPDATE medi001.nominas
+		SET monto_base = $2, bonificaciones = $3, deducciones = $4, monto_total = $5, notas = $6, updated_at = NOW()
+		WHERE id = $1;
+	`
+
+	res, err := d.db.Exec(query, n.Id, n.MontoBase, n.Bonificaciones, n.Deducciones, n.MontoTotal, n.Notas)
+	if err != nil {
+		utils.CreateLog("Error al actualizar nómina: " + err.Error())
+		rp.Status = 500
+		rp.Mensaje = "Error al actualizar nómina: " + err.Error()
+		return rp
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		rp.Status = 404
+		rp.Mensaje = "No se encontró la nómina a actualizar"
+		return rp
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Nómina actualizada correctamente"
+	return rp
 }
 
 func (d *DB) PayNomina(nominaID int, fechaPago string, metodoPago string, usuarioOperacion string) models.Respuesta {
-	return models.Respuesta{Status: 200, Mensaje: "Nómina pagada"}
+	d.ensureNominasTable()
+	var rp models.Respuesta
+
+	if nominaID <= 0 {
+		rp.Status = 400
+		rp.Mensaje = "ID de nómina inválido"
+		return rp
+	}
+
+	var n models.NominaModel
+	var pNombre string
+	errNom := d.db.QueryRow(`
+		SELECT n.id, n.personal_id, COALESCE(p.nombre, 'Personal'), n.monto_total, COALESCE(n.tipo_periodo, 'Semanal')
+		FROM medi001.nominas n
+		LEFT JOIN medi001.personal p ON n.personal_id = p.id
+		WHERE n.id = $1;
+	`, nominaID).Scan(&n.Id, &n.PersonalId, &pNombre, &n.MontoTotal, &n.TipoPeriodo)
+
+	if errNom != nil {
+		rp.Status = 404
+		rp.Mensaje = "No se encontró la nómina especificada"
+		return rp
+	}
+
+	var egresoID int
+	descEgreso := fmt.Sprintf("Pago de Nómina %s - %s", n.TipoPeriodo, pNombre)
+	errEgreso := d.db.QueryRow(`
+		INSERT INTO medi001.egresos (
+			fecha, descripcion, proveedor, monto, categoria, metodo_pago, referencia, usuario_operacion, fecha_operacion
+		) VALUES (NOW(), $1, $2, $3, 'Nómina / Personal', $4, $5, $6, NOW())
+		RETURNING id;
+	`, descEgreso, pNombre, n.MontoTotal, metodoPago, fmt.Sprintf("NOM-%d", n.Id), usuarioOperacion).Scan(&egresoID)
+
+	if errEgreso != nil {
+		utils.CreateLog("Error al generar egreso por nómina: " + errEgreso.Error())
+	}
+
+	_, errUpd := d.db.Exec(`
+		UPDATE medi001.nominas
+		SET status = 'Pagado', fecha_pago = NOW(), egreso_id = $2, updated_at = NOW()
+		WHERE id = $1;
+	`, nominaID, egresoID)
+
+	if errUpd != nil {
+		rp.Status = 500
+		rp.Mensaje = "Error al actualizar estado de pago: " + errUpd.Error()
+		return rp
+	}
+
+	rp.Status = 200
+	rp.Mensaje = fmt.Sprintf("Pago procesado y Egreso #%d generado exitosamente", egresoID)
+	return rp
 }
 
 func (d *DB) DelNomina(i models.Id) models.Respuesta {
-	return models.Respuesta{Status: 200, Mensaje: "Nómina eliminada"}
+	d.ensureNominasTable()
+	var rp models.Respuesta
+
+	id, errConv := strconv.Atoi(i.Id)
+	if errConv != nil || id <= 0 {
+		rp.Status = 400
+		rp.Mensaje = "ID de nómina inválido"
+		return rp
+	}
+
+	query := `DELETE FROM medi001.nominas WHERE id = $1;`
+	res, err := d.db.Exec(query, id)
+	if err != nil {
+		utils.CreateLog("Error al eliminar nómina: " + err.Error())
+		rp.Status = 500
+		rp.Mensaje = "Error al eliminar nómina: " + err.Error()
+		return rp
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		rp.Status = 404
+		rp.Mensaje = "No se encontró la nómina a eliminar"
+		return rp
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Nómina eliminada correctamente"
+	return rp
 }
 
 // ensurePersonalTable garantiza que la tabla medi001.personal exista con todas sus columnas.
