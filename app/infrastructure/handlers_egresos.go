@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"omhmre.com/centromedico/app/domain/models"
@@ -10,13 +11,8 @@ import (
 func (a *App) GetEgresos() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var f models.Fechas
-		err := json.NewDecoder(r.Body).Decode(&f)
-		if err != nil {
-			sendResponse(w, r, models.Respuesta{
-				Status:  http.StatusBadRequest,
-				Mensaje: "Datos de fecha inválidos: " + err.Error(),
-			}, http.StatusBadRequest)
-			return
+		if r.Body != nil {
+			_ = json.NewDecoder(r.Body).Decode(&f)
 		}
 
 		res, st := a.DB.GetEgresos(f)
@@ -75,17 +71,20 @@ func (a *App) PutEgreso() http.HandlerFunc {
 
 func (a *App) DelEgreso() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var i models.Id
-		err := json.NewDecoder(r.Body).Decode(&i)
-		if err != nil {
+		var payload struct {
+			ID interface{} `json:"id"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		if err != nil || payload.ID == nil {
 			sendResponse(w, r, models.Respuesta{
 				Status:  http.StatusBadRequest,
-				Mensaje: "ID inválido: " + err.Error(),
+				Mensaje: "ID de egreso inválido",
 			}, http.StatusBadRequest)
 			return
 		}
 
-		st := a.DB.DelEgreso(i)
+		idStr := fmt.Sprintf("%v", payload.ID)
+		st := a.DB.DelEgreso(models.Id{Id: idStr})
 		if st.Status >= 400 {
 			sendResponse(w, r, st, http.StatusInternalServerError)
 		} else {
@@ -132,17 +131,20 @@ func (a *App) PostConfigEgreso() http.HandlerFunc {
 
 func (a *App) DelConfigEgreso() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var i models.Id
-		err := json.NewDecoder(r.Body).Decode(&i)
-		if err != nil {
+		var payload struct {
+			ID interface{} `json:"id"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		if err != nil || payload.ID == nil {
 			sendResponse(w, r, models.Respuesta{
 				Status:  http.StatusBadRequest,
-				Mensaje: "ID inválido: " + err.Error(),
+				Mensaje: "ID de opción inválido",
 			}, http.StatusBadRequest)
 			return
 		}
 
-		st := a.DB.DelConfigEgreso(i)
+		idStr := fmt.Sprintf("%v", payload.ID)
+		st := a.DB.DelConfigEgreso(models.Id{Id: idStr})
 		if st.Status >= 400 {
 			sendResponse(w, r, st, http.StatusInternalServerError)
 		} else {
@@ -151,3 +153,4 @@ func (a *App) DelConfigEgreso() http.HandlerFunc {
 		}
 	}
 }
+
