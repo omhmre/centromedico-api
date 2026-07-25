@@ -1,11 +1,16 @@
 package database
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"omhmre.com/centromedico/app/domain/models"
@@ -356,46 +361,104 @@ type ExchangeRateAPIResponse struct {
 	Promedio float64 `json:"promedio"`
 }
 
+func fetchBCVWebsiteDirect() (float64, error) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   8 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", "https://www.bcv.org.ve", nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("HTTP status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	htmlStr := string(body)
+
+	re := regexp.MustCompile(`(?s)<span>\s*USD\s*</span>.*?<strong[^>]*>\s*([\d,.]{3,15})\s*</strong>`)
+	matches := re.FindStringSubmatch(htmlStr)
+	if len(matches) < 2 {
+		reFallback := regexp.MustCompile(`(?s)id=["']dolar["'].*?<strong>\s*([\d,.]{3,15})\s*</strong>`)
+		matches = reFallback.FindStringSubmatch(htmlStr)
+	}
+
+	if len(matches) < 2 {
+		return 0, fmt.Errorf("no match found for USD rate in BCV HTML")
+	}
+
+	valStr := strings.TrimSpace(matches[1])
+	valStr = strings.ReplaceAll(valStr, ",", ".")
+
+	val, err := strconv.ParseFloat(valStr, 64)
+	if err != nil {
+		return 0, fmt.Errorf("error parsing float '%s': %v", valStr, err)
+	}
+
+	return val, nil
+}
+
 func (d *DB) FetchExchangeRate() (float64, models.Respuesta) {
 	var rp models.Respuesta
+	var vesRate float64
+	var source string
 
-	// 1. Try to fetch the exchange rate online
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://ve.dolarapi.com/v1/dolares/oficial")
-	if err == nil && resp.StatusCode == http.StatusOK {
-		defer resp.Body.Close()
-		var apiResp ExchangeRateAPIResponse
-		if errDec := json.NewDecoder(resp.Body).Decode(&apiResp); errDec == nil {
-			if vesRate := apiResp.Promedio; vesRate > 0 {
-				// Redondear a 2 decimales
-				vesRate = math.Round(vesRate*100) / 100
-
-				// Update divisas rate in the database for USD (id = 1)
-				_, errUpd := d.db.Exec(`UPDATE empre001.divisas SET tasabs = $1, fechatasa = NOW() WHERE id = 1;`, vesRate)
-				if errUpd != nil {
-					utils.CreateLog("Error saving new exchange rate to divisas table: " + errUpd.Error())
-				}
-				// Update instpagos rate to maintain consistency
-				_, errUpd2 := d.db.Exec(`UPDATE empre001.instpagos SET tasa = $1 WHERE simbolo = '$';`, vesRate)
-				if errUpd2 != nil {
-					utils.CreateLog("Error saving new exchange rate to instpagos table: " + errUpd2.Error())
-				}
-
-				rp.Status = 200
-				rp.Mensaje = fmt.Sprintf("Tasa de cambio actualizada online a %.2f bolívares correctamente.", vesRate)
-				return vesRate, rp
+	// 1. Intentar scraping directo del portal oficial del BCV (www.bcv.org.ve)
+	if rate, err := fetchBCVWebsiteDirect(); err == nil && rate > 0 {
+		vesRate = math.Round(rate*10000) / 10000
+		source = "Portal Oficial BCV (directo)"
+	} else {
+		if err != nil {
+			utils.CreateLog("Error obteniendo tasa directamente del BCV: " + err.Error())
+		}
+		// 2. Fallback: Intentar obtener desde API externa (DolarApi)
+		client := &http.Client{Timeout: 6 * time.Second}
+		resp, errApi := client.Get("https://ve.dolarapi.com/v1/dolares/oficial")
+		if errApi == nil && resp.StatusCode == http.StatusOK {
+			defer resp.Body.Close()
+			var apiResp ExchangeRateAPIResponse
+			if errDec := json.NewDecoder(resp.Body).Decode(&apiResp); errDec == nil && apiResp.Promedio > 0 {
+				vesRate = math.Round(apiResp.Promedio*10000) / 10000
+				source = "API Externa DolarApi"
 			}
 		}
 	}
 
-	// Log errors if online update fails
-	if err != nil {
-		utils.CreateLog("Error fetching online exchange rate: " + err.Error())
-	} else if resp != nil {
-		utils.CreateLog(fmt.Sprintf("Error fetching online exchange rate: HTTP status %d", resp.StatusCode))
+	if vesRate > 0 {
+		// Update divisas rate in the database for USD (id = 1)
+		_, errUpd := d.db.Exec(`UPDATE empre001.divisas SET tasabs = $1, fechatasa = NOW() WHERE id = 1;`, vesRate)
+		if errUpd != nil {
+			utils.CreateLog("Error saving new exchange rate to divisas table: " + errUpd.Error())
+		}
+		// Update instpagos rate to maintain consistency
+		_, errUpd2 := d.db.Exec(`UPDATE empre001.instpagos SET tasa = $1 WHERE simbolo = '$';`, vesRate)
+		if errUpd2 != nil {
+			utils.CreateLog("Error saving new exchange rate to instpagos table: " + errUpd2.Error())
+		}
+
+		rp.Status = 200
+		rp.Mensaje = fmt.Sprintf("Tasa BCV actualizada a %.4f Bs/$ (%s)", vesRate, source)
+		return vesRate, rp
 	}
 
-	// 2. Fallback: retrieve local exchange rate from database if online fetch fails
+	// 3. Fallback: recuperar tasa local de la base de datos si falla la conexión online
 	var tasa float64
 	errDb := d.db.QueryRow(`select tasabs from empre001.divisas where id = 1;`).Scan(&tasa)
 	if errDb != nil {
