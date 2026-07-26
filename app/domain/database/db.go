@@ -191,6 +191,14 @@ type PostDB interface {
 	MarkInformeAsDelivered(id int) models.Respuesta
 	GetMedicalHistoryTimeline(idPaciente int) ([]models.HistoryTimelineItem, models.Respuesta)
 	GetPatientMedicalInsights(idPaciente int) (map[string]interface{}, models.Respuesta)
+	InitAbonosTables()
+	GetAbonos(cedula string, patrocinante string) ([]models.PacienteAbono, models.Respuesta)
+	PostAbono(a models.PacienteAbono) models.Respuesta
+	DeleteAbono(id int) models.Respuesta
+	GetConsumos(cedula string) ([]models.PacienteConsumo, models.Respuesta)
+	PostConsumo(c models.PacienteConsumo) models.Respuesta
+	DeleteConsumo(id int) models.Respuesta
+	GetEstadoCuentaAbonos(cedula string, patrocinante string, desde string, hasta string) (models.EstadoCuentaAbonos, models.Respuesta)
 }
 type DB struct {
 	db   *sql.DB

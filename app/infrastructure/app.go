@@ -254,6 +254,33 @@ func (a *App) initializeRoutes() {
 	a.Router.HandleFunc("/putdiagnostico", a.AddDiagnosis())
 	a.Router.HandleFunc("/update-exchange-rate", a.UpdateExchangeRateAndAppointments())
 
+	// Abonos y Consumos (Digitel / Pacientes)
+	a.Router.HandleFunc("/abonos", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			a.GetAbonos()(w, r)
+		case http.MethodPost:
+			a.PostAbono()(w, r)
+		case http.MethodDelete:
+			a.DeleteAbono()(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	a.Router.HandleFunc("/consumos", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			a.GetConsumos()(w, r)
+		case http.MethodPost:
+			a.PostConsumo()(w, r)
+		case http.MethodDelete:
+			a.DeleteConsumo()(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	a.Router.HandleFunc("/abonos/estado-cuenta", a.GetEstadoCuentaAbonos())
+
 	// Historial Clínico
 	a.Router.HandleFunc("/getantecedentes", a.GetAntecedentes())
 	a.Router.HandleFunc("/postantecedentes", a.PostAntecedentes())
