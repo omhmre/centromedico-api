@@ -40,6 +40,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("error al abrir la conexión a la base de datos: %w", err)
 	}
 	db.InitAbonosTables()
+	db.InitPatrocinantesTable()
 	defer func() {
 		if err := db.Close(); err != nil {
 			logger.Error("Error al cerrar la conexión a la base de datos", "error", err)

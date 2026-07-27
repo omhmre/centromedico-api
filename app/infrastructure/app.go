@@ -280,6 +280,18 @@ func (a *App) initializeRoutes() {
 		}
 	})
 	a.Router.HandleFunc("/abonos/estado-cuenta", a.GetEstadoCuentaAbonos())
+	a.Router.HandleFunc("/patrocinantes", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			a.GetPatrocinantes()(w, r)
+		case http.MethodPost:
+			a.PostPatrocinante()(w, r)
+		case http.MethodDelete:
+			a.DeletePatrocinante()(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Historial Clínico
 	a.Router.HandleFunc("/getantecedentes", a.GetAntecedentes())

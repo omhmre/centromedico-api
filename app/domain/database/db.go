@@ -199,6 +199,10 @@ type PostDB interface {
 	PostConsumo(c models.PacienteConsumo) models.Respuesta
 	DeleteConsumo(id int) models.Respuesta
 	GetEstadoCuentaAbonos(cedula string, patrocinante string, desde string, hasta string) (models.EstadoCuentaAbonos, models.Respuesta)
+	InitPatrocinantesTable()
+	GetPatrocinantes() ([]models.Patrocinante, models.Respuesta)
+	PostPatrocinante(p models.Patrocinante) models.Respuesta
+	DeletePatrocinante(id int) models.Respuesta
 }
 type DB struct {
 	db   *sql.DB
