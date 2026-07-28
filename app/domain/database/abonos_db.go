@@ -57,8 +57,8 @@ func (d *DB) GetAbonos(cedula string, patrocinante string) ([]models.PacienteAbo
 		SELECT a.id, a.cedula_paciente, COALESCE(p.nombres, ''), a.patrocinante, a.fecha_abono, a.monto, a.tasa,
 		       a.metodo_pago, a.referencia, a.observaciones, COALESCE(a.creado_por, ''), a.fecha_creacion
 		FROM medi001.paciente_abonos a
-		LEFT JOIN medi001.pacientes p ON a.cedula_paciente = p.cedula
-		WHERE ($1 = '' OR a.cedula_paciente = $1)
+		LEFT JOIN medi001.pacientes p ON (a.cedula_paciente = p.cedula OR a.cedula_paciente = p.id::text)
+		WHERE ($1 = '' OR a.cedula_paciente = $1 OR p.cedula = $1 OR p.id::text = $1)
 		  AND ($2 = '' OR LOWER(a.patrocinante) LIKE LOWER($2))
 		ORDER BY a.fecha_abono DESC;`
 
@@ -151,8 +151,8 @@ func (d *DB) GetConsumos(cedula string) ([]models.PacienteConsumo, models.Respue
 		SELECT c.id, c.id_abono, c.cedula_paciente, COALESCE(p.nombres, ''), c.id_cita, c.fecha_consumo,
 		       c.especialidad, c.servicio, c.monto, c.observaciones, COALESCE(c.creado_por, ''), c.fecha_creacion
 		FROM medi001.paciente_consumos c
-		LEFT JOIN medi001.pacientes p ON c.cedula_paciente = p.cedula
-		WHERE ($1 = '' OR c.cedula_paciente = $1)
+		LEFT JOIN medi001.pacientes p ON (c.cedula_paciente = p.cedula OR c.cedula_paciente = p.id::text)
+		WHERE ($1 = '' OR c.cedula_paciente = $1 OR p.cedula = $1 OR p.id::text = $1)
 		ORDER BY c.fecha_consumo DESC;`
 
 	rows, err := d.db.Query(sqlQuery, cedula)
