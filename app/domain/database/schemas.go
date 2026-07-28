@@ -632,7 +632,7 @@ const sqlGetCitas = `SELECT
     c.tasa,
     c.montobs,
     c.pagado,
-    c.saldo
+    CASE WHEN (c.montoref - c.pagado) < 0 THEN 0.00 ELSE (c.montoref - c.pagado) END AS saldo
 FROM
     medi001.citas c
 INNER JOIN
@@ -657,13 +657,14 @@ const sqlUpdCita = `UPDATE medi001.citas SET
         montoref = $9,
         tasa = $10,
         montobs = $11,
-        pagado = $12
+        pagado = $12,
+        saldo = CASE WHEN ($9 - $12) < 0 THEN 0.00 ELSE ($9 - $12) END
 		WHERE id = $1`
 
 const sqlUpdDiagnostico = `UPDATE medi001.citas SET diagnostico = $1, status = 'Completada' WHERE id = $2`
 
 const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo) 
-		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $8);`
+		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN ($8 - $11) < 0 THEN 0.00 ELSE ($8 - $11) END);`
 
 const sqlGetCitaPaciente = `SELECT
     c.id AS cita_id,
@@ -682,7 +683,7 @@ const sqlGetCitaPaciente = `SELECT
     c.tasa,
     c.montobs,
     c.pagado,
-    c.saldo
+    CASE WHEN (c.montoref - c.pagado) < 0 THEN 0.00 ELSE (c.montoref - c.pagado) END AS saldo
 FROM
     medi001.citas c
 INNER JOIN

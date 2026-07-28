@@ -4185,7 +4185,7 @@ func (d *DB) GetCitasFecha(p models.Fechas) ([]models.CitaModel, models.Respuest
     c.tasa,
     c.montobs,
     c.pagado,
-    c.saldo
+    CASE WHEN (c.montoref - c.pagado) < 0 THEN 0.00 ELSE (c.montoref - c.pagado) END AS saldo
 FROM
     medi001.citas c
 INNER JOIN
