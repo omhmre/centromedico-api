@@ -658,13 +658,13 @@ const sqlUpdCita = `UPDATE medi001.citas SET
         tasa = $10,
         montobs = $11,
         pagado = $12,
-        saldo = CASE WHEN ($9 - $12) < 0 THEN 0.00 ELSE ($9 - $12) END
+        saldo = CASE WHEN ($9::numeric - $12::numeric) < 0 THEN 0.00 ELSE ($9::numeric - $12::numeric) END
 		WHERE id = $1`
 
 const sqlUpdDiagnostico = `UPDATE medi001.citas SET diagnostico = $1, status = 'Completada' WHERE id = $2`
 
 const sqlPostCita = `INSERT INTO medi001.citas (id, iddoctor, cedula, motivo, inicio, fin, status, color, montoref, tasa, montobs, pagado, saldo) 
-		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN ($8 - $11) < 0 THEN 0.00 ELSE ($8 - $11) END);`
+		VALUES (nextval('medi001.citas_id_seq'::regclass), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN ($8::numeric - $11::numeric) < 0 THEN 0.00 ELSE ($8::numeric - $11::numeric) END);`
 
 const sqlGetCitaPaciente = `SELECT
     c.id AS cita_id,
