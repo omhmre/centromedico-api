@@ -191,6 +191,7 @@ func (a *App) initializeRoutes() {
 	// Tasas Y Divisas
 	a.Router.HandleFunc("/chgtasa", a.UpdDivisa())
 	a.Router.HandleFunc("/divisas", a.GetDivisas())
+	a.Router.HandleFunc("/tasa-fecha", a.GetTasaFecha())
 
 	// Pagos
 	a.Router.HandleFunc("/postpagos", a.PostPagos())

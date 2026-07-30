@@ -1089,6 +1089,28 @@ func (a *App) GetDivisas() http.HandlerFunc {
 	}
 }
 
+func (a *App) GetTasaFecha() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fechaStr := r.URL.Query().Get("fecha")
+		if fechaStr == "" {
+			fechaStr = time.Now().Format("2006-01-02")
+		}
+
+		rate, resp := a.DB.GetTasaByFecha(fechaStr)
+		if resp.Status >= 400 {
+			sendResponse(w, r, resp, resp.Status)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": 200,
+			"tasa":   rate,
+			"fecha":  fechaStr,
+		})
+	}
+}
+
 func (a *App) GetPreFactura() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var f models.Prefactura

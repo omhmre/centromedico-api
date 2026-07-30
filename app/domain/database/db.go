@@ -74,6 +74,7 @@ type PostDB interface {
 	GetDetPagosFecha(p models.Fechas) ([]models.DetPago, models.Respuesta)
 	GetResDetPagos(p models.Fechas) ([]models.ResumenDetPago, models.Respuesta)
 	GetDivisas() ([]models.Divisas, models.Respuesta)
+	GetTasaByFecha(fecha string) (float64, models.Respuesta)
 	GetVendedores() ([]models.Vendedor, models.Respuesta)
 	GetFacturaId(p models.Factura) (models.Factura, models.Respuesta)
 	GetUsers() ([]models.Usuario, models.Respuesta)
@@ -3425,6 +3426,47 @@ func (d *DB) GetDivisas() ([]models.Divisas, models.Respuesta) {
 	rp.Status = 10
 	rp.Mensaje = "Divisas listadas correctamente!"
 	return divisas, rp
+}
+
+func (d *DB) GetTasaByFecha(fecha string) (float64, models.Respuesta) {
+	var rp models.Respuesta
+	var tasa float64
+
+	// 1. Consultar tabla de histórico de tasas (empre001.detdivisas)
+	err := d.db.QueryRow(`
+		SELECT tasabs FROM empre001.detdivisas 
+		WHERE fechatasa <= $1 
+		ORDER BY fechatasa DESC, id DESC LIMIT 1
+	`, fecha).Scan(&tasa)
+
+	if err == nil && tasa > 0 {
+		rp.Status = 200
+		rp.Mensaje = "Tasa obtenida del histórico (detdivisas)"
+		return tasa, rp
+	}
+
+	// 2. Si no se encuentra en detdivisas, consultar citas registradas en o antes de esa fecha
+	err = d.db.QueryRow(`
+		SELECT tasa FROM medi001.citas 
+		WHERE inicio::date <= $1 AND tasa > 0 
+		ORDER BY inicio DESC LIMIT 1
+	`, fecha).Scan(&tasa)
+
+	if err == nil && tasa > 0 {
+		rp.Status = 200
+		rp.Mensaje = "Tasa obtenida de citas (medi001.citas)"
+		return tasa, rp
+	}
+
+	// 3. Fallback: consultar la tasa actual en empre001.divisas
+	err = d.db.QueryRow(`SELECT tasabs FROM empre001.divisas WHERE id = 1`).Scan(&tasa)
+	if err != nil || tasa == 0 {
+		tasa = 1.0
+	}
+
+	rp.Status = 200
+	rp.Mensaje = "Tasa predeterminada"
+	return tasa, rp
 }
 
 func (d *DB) GetVendedores() ([]models.Vendedor, models.Respuesta) {
