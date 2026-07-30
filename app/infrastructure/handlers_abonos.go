@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"omhmre.com/centromedico/app/domain/models"
 )
@@ -28,11 +29,38 @@ func (a *App) GetAbonos() http.HandlerFunc {
 // PostAbono maneja las peticiones POST para registrar un nuevo abono.
 func (a *App) PostAbono() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var abono models.PacienteAbono
-		err := json.NewDecoder(r.Body).Decode(&abono)
+		var dto struct {
+			ID             int         `json:"id"`
+			CedulaPaciente string      `json:"cedula_paciente"`
+			NombrePaciente string      `json:"nombre_paciente"`
+			Patrocinante   string      `json:"patrocinante"`
+			FechaAbono     interface{} `json:"fecha_abono"`
+			Monto          float64     `json:"monto"`
+			Tasa           float64     `json:"tasa"`
+			MetodoPago     string      `json:"metodo_pago"`
+			Referencia     string      `json:"referencia"`
+			Observaciones  string      `json:"observaciones"`
+			CreadoPor      string      `json:"creado_por"`
+		}
+
+		err := json.NewDecoder(r.Body).Decode(&dto)
 		if err != nil {
 			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Cuerpo de solicitud inválido: " + err.Error()}, 400)
 			return
+		}
+
+		abono := models.PacienteAbono{
+			ID:             dto.ID,
+			CedulaPaciente: dto.CedulaPaciente,
+			NombrePaciente: dto.NombrePaciente,
+			Patrocinante:   dto.Patrocinante,
+			FechaAbono:     parseFlexibleTime(dto.FechaAbono),
+			Monto:          dto.Monto,
+			Tasa:           dto.Tasa,
+			MetodoPago:     dto.MetodoPago,
+			Referencia:     dto.Referencia,
+			Observaciones:  dto.Observaciones,
+			CreadoPor:      dto.CreadoPor,
 		}
 
 		if abono.CedulaPaciente == "" || abono.Monto <= 0 {
@@ -79,11 +107,38 @@ func (a *App) GetConsumos() http.HandlerFunc {
 // PostConsumo maneja las peticiones POST para registrar un nuevo consumo descontado.
 func (a *App) PostConsumo() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var consumo models.PacienteConsumo
-		err := json.NewDecoder(r.Body).Decode(&consumo)
+		var dto struct {
+			ID             int         `json:"id"`
+			IDAbono        *int        `json:"id_abono"`
+			CedulaPaciente string      `json:"cedula_paciente"`
+			NombrePaciente string      `json:"nombre_paciente"`
+			IDCita         *int        `json:"id_cita"`
+			FechaConsumo   interface{} `json:"fecha_consumo"`
+			Especialidad   string      `json:"especialidad"`
+			Servicio       string      `json:"servicio"`
+			Monto          float64     `json:"monto"`
+			Observaciones  string      `json:"observaciones"`
+			CreadoPor      string      `json:"creado_por"`
+		}
+
+		err := json.NewDecoder(r.Body).Decode(&dto)
 		if err != nil {
 			sendResponse(w, r, models.Respuesta{Status: 400, Mensaje: "Cuerpo de solicitud inválido: " + err.Error()}, 400)
 			return
+		}
+
+		consumo := models.PacienteConsumo{
+			ID:             dto.ID,
+			IDAbono:        dto.IDAbono,
+			CedulaPaciente: dto.CedulaPaciente,
+			NombrePaciente: dto.NombrePaciente,
+			IDCita:         dto.IDCita,
+			FechaConsumo:   parseFlexibleTime(dto.FechaConsumo),
+			Especialidad:   dto.Especialidad,
+			Servicio:       dto.Servicio,
+			Monto:          dto.Monto,
+			Observaciones:  dto.Observaciones,
+			CreadoPor:      dto.CreadoPor,
 		}
 
 		if consumo.CedulaPaciente == "" || consumo.Monto <= 0 || consumo.Especialidad == "" {
@@ -128,4 +183,30 @@ func (a *App) GetEstadoCuentaAbonos() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(datos)
 	}
+}
+
+func parseFlexibleTime(val interface{}) time.Time {
+	if val == nil {
+		return time.Now()
+	}
+	str, ok := val.(string)
+	if !ok || str == "" {
+		return time.Now()
+	}
+
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05.000Z07:00",
+		"2006-01-02T15:04:05.000",
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, str); err == nil {
+			return t
+		}
+	}
+
+	return time.Now()
 }
