@@ -8,9 +8,10 @@ type AIChatMessage struct {
 
 // AIChatRequest represents the incoming chat request from Flutter
 type AIChatRequest struct {
-	Message string          `json:"message"`
-	History []AIChatMessage `json:"history"`
-	Cedula  string          `json:"cedula,omitempty"` // Identificación del paciente activo en el cliente
+	Message   string          `json:"message"`
+	History   []AIChatMessage `json:"history"`
+	Cedula    string          `json:"cedula,omitempty"` // Identificación del paciente activo en el cliente
+	UsuarioID int64           `json:"usuario_id,omitempty"` // ID del usuario administrativo activo en el cliente
 }
 
 // AIChatResponse represents the response containing the assistant's message and optional interactive widgets/payloads

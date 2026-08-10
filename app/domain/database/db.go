@@ -1109,8 +1109,20 @@ func (d *DB) Open() error {
 		utils.CreateLog(err.Error())
 		return err
 	}
+	if err := pg.Ping(); err != nil {
+		utils.CreateLog(fmt.Sprintf("Error probando conexión a la base de datos %s: %v", DB_NAME, err))
+		return err
+	}
 	utils.CreateLog("Conectado a la base de datos " + DB_NAME)
 	d.db = pg
+
+	// Asegurar la existencia de los esquemas base de la aplicación
+	schemas := []string{"medi001", "empre001", "seguridad"}
+	for _, schema := range schemas {
+		if _, err := d.db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", schema)); err != nil {
+			utils.CreateLog(fmt.Sprintf("Error verificando/creando esquema %s: %v", schema, err))
+		}
+	}
 
 	return nil
 }

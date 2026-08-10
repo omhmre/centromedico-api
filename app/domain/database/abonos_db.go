@@ -10,6 +10,10 @@ import (
 
 // InitAbonosTables crea las tablas medi001.paciente_abonos y medi001.paciente_consumos si no existen.
 func (d *DB) InitAbonosTables() {
+	if _, err := d.db.Exec(`CREATE SCHEMA IF NOT EXISTS medi001;`); err != nil {
+		utils.CreateLog("Error creando esquema medi001: " + err.Error())
+	}
+
 	queryAbonos := `
 	CREATE TABLE IF NOT EXISTS medi001.paciente_abonos (
 		id SERIAL PRIMARY KEY,
@@ -241,6 +245,16 @@ func (d *DB) GetEstadoCuentaAbonos(cedula string, patrocinante string, desde str
 	// 1. Cargar Abonos
 	abonos, _ := d.GetAbonos(cedula, patrocinante)
 	ec.Abonos = abonos
+
+	// Si patrocinante está vacío y el paciente posee abonos, usar el patrocinante del primer abono
+	if ec.Patrocinante == "" && len(ec.Abonos) > 0 {
+		for _, a := range ec.Abonos {
+			if a.Patrocinante != "" {
+				ec.Patrocinante = a.Patrocinante
+				break
+			}
+		}
+	}
 
 	// 2. Cargar Consumos
 	consumos, _ := d.GetConsumos(cedula)

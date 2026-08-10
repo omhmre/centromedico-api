@@ -10,6 +10,10 @@ import (
 
 // InitPatrocinantesTable crea la tabla medi001.patrocinantes y siembra datos iniciales.
 func (d *DB) InitPatrocinantesTable() {
+	if _, err := d.db.Exec(`CREATE SCHEMA IF NOT EXISTS medi001;`); err != nil {
+		utils.CreateLog("Error creando esquema medi001: " + err.Error())
+	}
+
 	query := `
 	CREATE TABLE IF NOT EXISTS medi001.patrocinantes (
 		id SERIAL PRIMARY KEY,

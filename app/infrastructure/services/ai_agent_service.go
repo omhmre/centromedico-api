@@ -29,16 +29,17 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 	model.SetTemperature(0.2)
 	model.SystemInstruction = &genai.Content{
 		Parts: []genai.Part{
-			genai.Text("Eres Jarvis, el Asistente Virtual Inteligente del Centro Médico. Tu objetivo es ayudar al usuario con el agendamiento de citas médicas de la manera más rápida, proactiva y fluida posible, minimizando las preguntas al usuario.\n\n" +
+			genai.Text("Eres Jarvis, el Asistente Virtual Inteligente del Centro Médico. Tu objetivo es ayudar al usuario con la gestión administrativa, consultas generales y estadísticas de la clínica, además de la reserva de citas.\n\n" +
 				"Sigue estas reglas estrictas para procesar la solicitud del usuario:\n" +
 				"1. Escribe de forma concisa, profesional y amable en Español.\n" +
-				"2. BÚSQUEDA AUTOMÁTICA DEL PACIENTE: Si el usuario menciona un nombre de paciente (ej. 'para nilio', 'mi cita'), utiliza de inmediato la herramienta 'buscarPacientePorNombre'. Si encuentras un paciente en la lista devuelta, extrae su cédula directamente y úsala. No le preguntes la cédula al usuario a menos que no encuentres al paciente o sea un paciente nuevo.\n" +
-				"3. BÚSQUEDA DEL MÉDICO: Si el usuario menciona el nombre o apellido de un médico (ej. 'dr montaner', 'doctora rodriguez'), utiliza primero la herramienta 'buscarDoctorPorNombre'. Si solo menciona un área o especialidad (ej. 'pediatra', 'ginecologia'), utiliza la herramienta 'buscarMedicos'.\n" +
-				"4. FECHA POR DEFECTO: Si el usuario NO especifica una fecha de forma explícita, asume que la cita es para el día de hoy, que es: " + time.Now().Format("2006-01-02") + " (Día de la semana: " + time.Now().Weekday().String() + "). Si da fechas relativas como 'mañana' o 'el próximo martes', calcula la fecha correspondiente basándote en la fecha actual.\n" +
-				"5. HORA POR DEFECTO/FORMATO: Convierte siempre las horas al formato de 24 horas (HH:MM) para llamar a las herramientas (ej. '5:00' o 'a las 5' se debe interpretar como '17:00' si es por la tarde o horario laboral normal; '9:00' debe ser '09:00'). Si la hora no se especifica, consulta disponibilidad para ver horarios libres.\n" +
-				"6. MOTIVO POR DEFECTO: Si el usuario no menciona un motivo de consulta, utiliza el motivo genérico 'Control' por defecto.\n" +
-				"7. FLUJO DIRECTO A LA PRE-CONFIRMACIÓN: En cuanto tengas médico, fecha (especificada o la actual por defecto), hora (en formato HH:MM), cédula (buscada automáticamente o pedida) y motivo (especificado o 'Control' por defecto), invoca de inmediato la herramienta 'preConfirmarCita' en la misma secuencia de llamadas a herramientas, sin preguntarle al usuario.\n" +
-				"8. Una vez propuesta la pre-confirmación, explica al usuario brevemente que la cita queda pre-agendada en pantalla y que debe presionar el botón de 'Confirmar' para guardarla definitivamente.\n"),
+				"2. RESPUESTAS GENERALES Y ESTADÍSTICAS: Puedes responder libremente cualquier pregunta general de medicina o salud. Si el usuario te pregunta sobre estadísticas de la clínica, cuentas pendientes/deudores o la agenda de citas programadas (ej: total de citas, ingresos, especialidades, doctores más solicitados, quiénes no han pagado, o qué citas hay hoy/mañana), debes utilizar las herramientas estadísticas, de cobranza y de agenda disponibles (`obtenerEstadisticasGenerales`, `obtenerCitasPorEspecialidad`, `obtenerRendimientoDoctores`, `obtenerMetodosPagoEstadisticas`, `obtenerCuentasPorCobrar`, `obtenerAgendaFecha`). Si el usuario no especifica un rango de fechas o una fecha para la agenda, asume por defecto el mes actual para estadísticas/cobranza, y el día de hoy para la agenda. La fecha actual es: " + time.Now().Format("2006-01-02") + ".\n" +
+				"3. BÚSQUEDA AUTOMÁTICA DEL PACIENTE: Si el usuario menciona un nombre de paciente para agendar, utiliza de inmediato la herramienta 'buscarPacientePorNombre'. Si encuentras un paciente en la lista devuelta, extrae su cédula directamente y úsala. No le preguntes la cédula al usuario a menos que no encuentres al paciente o sea un paciente nuevo.\n" +
+				"4. BÚSQUEDA DEL MÉDICO: Si el usuario menciona el nombre o apellido de un médico, utiliza primero la herramienta 'buscarDoctorPorNombre'. Si solo menciona un área o especialidad, utiliza la herramienta 'buscarMedicos'.\n" +
+				"5. FECHA POR DEFECTO PARA CITAS: Si el usuario NO especifica una fecha para una cita de forma explícita, asume que es para el día de hoy: " + time.Now().Format("2006-01-02") + " (Día de la semana: " + time.Now().Weekday().String() + ").\n" +
+				"6. HORA POR DEFECTO/FORMATO: Convierte siempre las horas al formato de 24 horas (HH:MM) para llamar a las herramientas de citas. Si es por la tarde o horario laboral normal e interpreta '5' como '17:00'.\n" +
+				"7. MOTIVO POR DEFECTO: Si el usuario no menciona un motivo de consulta, utiliza 'Control' por defecto.\n" +
+				"8. FLUJO DIRECTO A LA PRE-CONFIRMACIÓN: En cuanto tengas médico, fecha, hora, cédula y motivo, invoca de inmediato la herramienta 'preConfirmarCita' sin preguntarle al usuario.\n" +
+				"9. Una vez propuesta la pre-confirmación de cita, explica al usuario brevemente que queda pre-agendada en pantalla y que debe presionar el botón de 'Confirmar' para guardarla definitivamente.\n"),
 		},
 	}
 
@@ -136,6 +137,110 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 						Required: []string{"medicoId", "fecha", "hora", "cedula", "motivo"},
 					},
 				},
+				{
+					Name:        "obtenerEstadisticasGenerales",
+					Description: "Obtiene un resumen general de KPIs e ingresos financieros del Centro Médico para un rango de fechas. Retorna total de citas, completadas, canceladas, ingresos USD, promedio de ingreso por cita, pacientes únicos, etc.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"fechaInicio": {
+								Type:        genai.TypeString,
+								Description: "Fecha de inicio del rango en formato YYYY-MM-DD.",
+							},
+							"fechaFin": {
+								Type:        genai.TypeString,
+								Description: "Fecha de fin del rango en formato YYYY-MM-DD.",
+							},
+						},
+						Required: []string{"fechaInicio", "fechaFin"},
+					},
+				},
+				{
+					Name:        "obtenerCitasPorEspecialidad",
+					Description: "Obtiene estadísticas de volumen de citas e ingresos agrupados por especialidad médica para un rango de fechas.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"fechaInicio": {
+								Type:        genai.TypeString,
+								Description: "Fecha de inicio del rango en formato YYYY-MM-DD.",
+							},
+							"fechaFin": {
+								Type:        genai.TypeString,
+								Description: "Fecha de fin del rango en formato YYYY-MM-DD.",
+							},
+						},
+						Required: []string{"fechaInicio", "fechaFin"},
+					},
+				},
+				{
+					Name:        "obtenerRendimientoDoctores",
+					Description: "Obtiene métricas de rendimiento, volumen de citas atendidas e ingresos generados por cada doctor en un rango de fechas.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"fechaInicio": {
+								Type:        genai.TypeString,
+								Description: "Fecha de inicio del rango en formato YYYY-MM-DD.",
+							},
+							"fechaFin": {
+								Type:        genai.TypeString,
+								Description: "Fecha de fin del rango en formato YYYY-MM-DD.",
+							},
+						},
+						Required: []string{"fechaInicio", "fechaFin"},
+					},
+				},
+				{
+					Name:        "obtenerMetodosPagoEstadisticas",
+					Description: "Obtiene un desglose y porcentajes de los montos cobrados según el método de pago utilizado para un rango de fechas.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"fechaInicio": {
+								Type:        genai.TypeString,
+								Description: "Fecha de inicio del rango en formato YYYY-MM-DD.",
+							},
+							"fechaFin": {
+								Type:        genai.TypeString,
+								Description: "Fecha de fin del rango en formato YYYY-MM-DD.",
+							},
+						},
+						Required: []string{"fechaInicio", "fechaFin"},
+					},
+				},
+				{
+					Name:        "obtenerCuentasPorCobrar",
+					Description: "Obtiene una lista de cuentas por cobrar (pacientes con deudas o saldos pendientes) para un rango de fechas. Retorna los nombres de los pacientes, el ID de factura/cita, y los saldos pendientes en bolívares y dólares.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"fechaInicio": {
+								Type:        genai.TypeString,
+								Description: "Fecha de inicio del rango en formato YYYY-MM-DD.",
+							},
+							"fechaFin": {
+								Type:        genai.TypeString,
+								Description: "Fecha de fin del rango en formato YYYY-MM-DD.",
+							},
+						},
+						Required: []string{"fechaInicio", "fechaFin"},
+					},
+				},
+				{
+					Name:        "obtenerAgendaFecha",
+					Description: "Obtiene la agenda de citas programadas para una fecha específica correspondientes únicamente a los médicos/especialistas asignados al usuario administrativo actual.",
+					Parameters: &genai.Schema{
+						Type: genai.TypeObject,
+						Properties: map[string]*genai.Schema{
+							"fecha": {
+								Type:        genai.TypeString,
+								Description: "La fecha de la agenda a consultar en formato YYYY-MM-DD (ej: '2026-06-02').",
+							},
+						},
+						Required: []string{"fecha"},
+					},
+				},
 			},
 		},
 	}
@@ -196,7 +301,7 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 				hasFunctionCall = true
 				utils.CreateLog(fmt.Sprintf("[AI Agent] Executing tool call: %s with args: %+v", fnCall.Name, fnCall.Args))
 
-				resultMap, toolErr := executeToolCall(ctx, db, fnCall, &lastPreConfirmation, &lastDoctorCards)
+				resultMap, toolErr := executeToolCall(ctx, db, fnCall, &lastPreConfirmation, &lastDoctorCards, req.UsuarioID)
 				var respMap map[string]interface{}
 				if toolErr != nil {
 					respMap = map[string]interface{}{"error": toolErr.Error()}
@@ -264,7 +369,7 @@ func ProcessAIChat(ctx context.Context, apiKey string, db database.PostDB, req m
 	return chatResp, nil
 }
 
-func executeToolCall(ctx context.Context, db database.PostDB, fnCall genai.FunctionCall, preConf **models.PreConfirmationCard, doctorCards *[]models.DoctorCard) (map[string]interface{}, error) {
+func executeToolCall(ctx context.Context, db database.PostDB, fnCall genai.FunctionCall, preConf **models.PreConfirmationCard, doctorCards *[]models.DoctorCard, userID int64) (map[string]interface{}, error) {
 	switch fnCall.Name {
 	case "buscarDoctorPorNombre":
 		nombre, ok := fnCall.Args["nombre"].(string)
@@ -514,6 +619,132 @@ func executeToolCall(ctx context.Context, db database.PostDB, fnCall genai.Funct
 		return map[string]interface{}{
 			"status":           "proposed",
 			"pre_confirmacion": preCard,
+		}, nil
+
+	case "obtenerEstadisticasGenerales":
+		fechaInicio, ok := fnCall.Args["fechaInicio"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaInicio' is missing or not a string")
+		}
+		fechaFin, ok := fnCall.Args["fechaFin"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaFin' is missing or not a string")
+		}
+		resumen, dbResp := db.GetBIResumenGeneral(fechaInicio, fechaFin)
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("database query error: %s", dbResp.Mensaje)
+		}
+		return map[string]interface{}{"resumen": resumen}, nil
+
+	case "obtenerCitasPorEspecialidad":
+		fechaInicio, ok := fnCall.Args["fechaInicio"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaInicio' is missing or not a string")
+		}
+		fechaFin, ok := fnCall.Args["fechaFin"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaFin' is missing or not a string")
+		}
+		res, dbResp := db.GetBICitasPorEspecialidad(fechaInicio, fechaFin)
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("database query error: %s", dbResp.Mensaje)
+		}
+		return map[string]interface{}{"especialidades": res}, nil
+
+	case "obtenerRendimientoDoctores":
+		fechaInicio, ok := fnCall.Args["fechaInicio"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaInicio' is missing or not a string")
+		}
+		fechaFin, ok := fnCall.Args["fechaFin"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaFin' is missing or not a string")
+		}
+		res, dbResp := db.GetBIRendimientoDoctor(fechaInicio, fechaFin)
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("database query error: %s", dbResp.Mensaje)
+		}
+		return map[string]interface{}{"doctores": res}, nil
+
+	case "obtenerMetodosPagoEstadisticas":
+		fechaInicio, ok := fnCall.Args["fechaInicio"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaInicio' is missing or not a string")
+		}
+		fechaFin, ok := fnCall.Args["fechaFin"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaFin' is missing or not a string")
+		}
+		res, dbResp := db.GetBIMetodosPago(fechaInicio, fechaFin)
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("database query error: %s", dbResp.Mensaje)
+		}
+		return map[string]interface{}{"metodos_pago": res}, nil
+
+	case "obtenerCuentasPorCobrar":
+		fechaInicio, ok := fnCall.Args["fechaInicio"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaInicio' is missing or not a string")
+		}
+		fechaFin, ok := fnCall.Args["fechaFin"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fechaFin' is missing or not a string")
+		}
+		cxcList, dbResp := db.GetCxcResumen(models.Fechas{Desde: fechaInicio, Hasta: fechaFin})
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("database query error: %s", dbResp.Mensaje)
+		}
+		return map[string]interface{}{"cuentas_por_cobrar": cxcList}, nil
+
+	case "obtenerAgendaFecha":
+		fecha, ok := fnCall.Args["fecha"].(string)
+		if !ok {
+			return nil, fmt.Errorf("argument 'fecha' is missing or not a string")
+		}
+
+		if userID <= 0 {
+			return nil, fmt.Errorf("no hay un usuario autenticado o ID de usuario inválido para consultar la agenda")
+		}
+
+		// 1. Obtener los doctores asignados a este usuario
+		doctores, dbResp := db.GetDoctoresPorUsuario(userID)
+		if dbResp.Status >= 400 {
+			return nil, fmt.Errorf("error obteniendo doctores asignados: %s", dbResp.Mensaje)
+		}
+
+		// 2. Para cada doctor, obtener sus citas en esa fecha
+		var agendaCompleta []map[string]interface{}
+		for _, doc := range doctores {
+			citas, dbResp := db.GetCitasDoctorFecha(doc.Id, fecha)
+			if dbResp.Status >= 400 {
+				continue // saltamos si hay error con algún doctor individual
+			}
+			
+			var citasSimplificadas []map[string]interface{}
+			for _, cita := range citas {
+				citasSimplificadas = append(citasSimplificadas, map[string]interface{}{
+					"id_cita":     cita.Id,
+					"paciente":    cita.Paciente,
+					"cedula":      cita.Cedula,
+					"motivo":      cita.Motivo,
+					"hora_inicio": cita.Inicio.Format("15:04"),
+					"hora_fin":     cita.Fin.Format("15:04"),
+					"status":      cita.Status,
+					"saldo":       cita.Saldo,
+				})
+			}
+
+			agendaCompleta = append(agendaCompleta, map[string]interface{}{
+				"doctor_id":    doc.Id,
+				"doctor_name":  doc.Nombres,
+				"especialidad": doc.Espec,
+				"citas":        citasSimplificadas,
+			})
+		}
+
+		return map[string]interface{}{
+			"fecha":  fecha,
+			"agenda": agendaCompleta,
 		}, nil
 	}
 
